@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: veekay-payroll-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: veekay_payroll
+      POSTGRES_USER: veekay
+      POSTGRES_PASSWORD: veekay_dev_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - veekay_payroll_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U veekay -d veekay_payroll"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  veekay_payroll_data:

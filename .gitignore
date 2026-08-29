@@ -1,0 +1,41 @@
+# Next.js
+.next/
+out/
+build/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Env
+.env
+.env*.local
+
+# Prisma
+prisma/*.db
+
+# Real payroll data — spreadsheets and exports should never be committed.
+# Only sample/demo data (prisma/seed.ts) belongs in this public repo. Excel
+# templates are generated dynamically in code, not stored as static files.
+*.xlsx
+*.xls
+*.csv
+
+# IDE
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# Testing
+coverage/
+
+# TypeScript build cache
+*.tsbuildinfo
+
+# Misc
+*.log
+Thumbs.db

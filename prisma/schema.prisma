@@ -1,0 +1,432 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Pooled connection (pgBouncer) — used by the app at runtime. Serverless
+  // functions open a connection per invocation, so pooling is required.
+  url       = env("DATABASE_URL")
+  // Direct (unpooled) connection — required for `prisma migrate`, which
+  // cannot run through pgBouncer. Locally both point at the same database.
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum UserRole {
+  ADMIN
+  PAYROLL_MANAGER
+  VIEWER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum HolidayType {
+  PUBLIC_HOLIDAY
+  COMPANY_HOLIDAY
+  OPTIONAL_HOLIDAY
+}
+
+enum RecordStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  WEEKLY_OFF
+  HOLIDAY
+}
+
+enum PayrollStatus {
+  DRAFT
+  REVIEW
+  FINALIZED
+}
+
+enum ExcelImportType {
+  EMPLOYEE
+  ATTENDANCE
+  ADVANCE
+  HOLIDAY
+  PAYROLL
+}
+
+enum ExcelImportStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+// ============================================================
+// AUTH
+// ============================================================
+
+model User {
+  id                  String     @id @default(cuid())
+  name                String
+  email               String     @unique
+  passwordHash        String
+  role                UserRole   @default(VIEWER)
+  status               UserStatus @default(ACTIVE)
+  resetToken          String?
+  resetTokenExpiresAt DateTime?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  auditLogs    AuditLog[]
+  excelImports ExcelImport[]
+
+  @@map("users")
+}
+
+// ============================================================
+// EMPLOYEE
+// ============================================================
+
+model Employee {
+  id            String         @id @default(cuid())
+  employeeCode  String         @unique
+  name          String
+  mobile        String?
+  email         String?
+  address       String?
+  department    String?
+  designation   String?
+  joiningDate   DateTime?      @db.Date
+  status        EmployeeStatus @default(ACTIVE)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  salaryConfig  EmployeeSalaryConfig?
+  attendance    Attendance[]
+  advances      SalaryAdvance[]
+  payrollRecords PayrollRecord[]
+
+  @@map("employees")
+  @@index([name])
+}
+
+model EmployeeSalaryConfig {
+  id             String   @id @default(cuid())
+  employeeId     String   @unique
+  employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  // Rate of Pay breakup (Register of Wages format). monthlySalary is the
+  // stored total and is always basicSalary + hra + conveyance.
+  basicSalary    Decimal  @db.Decimal(12, 2) @default(0)
+  hra            Decimal  @db.Decimal(12, 2) @default(0)
+  conveyance     Decimal  @db.Decimal(12, 2) @default(0)
+  monthlySalary  Decimal  @db.Decimal(12, 2)
+  pfApplicable   Boolean  @default(false)
+  esiApplicable  Boolean  @default(false)
+  ptApplicable   Boolean  @default(true)
+  rttApplicable  Boolean  @default(false)
+  // Whether this employee gets the 1-day-per-month absence forgiveness.
+  // Off by default: the factory's register deducts for every absent day,
+  // so this is opt-in per employee rather than a company-wide rule.
+  paidLeaveApplicable Boolean @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("employee_salary_config")
+}
+
+// ============================================================
+// HOLIDAY CALENDAR
+// ============================================================
+
+model Holiday {
+  id        String       @id @default(cuid())
+  date      DateTime     @db.Date
+  name      String
+  type      HolidayType  @default(PUBLIC_HOLIDAY)
+  status    RecordStatus @default(ACTIVE)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@unique([date])
+  @@map("holidays")
+}
+
+// ============================================================
+// PAYROLL PERIOD & ATTENDANCE
+// ============================================================
+
+model PayrollPeriod {
+  id              String        @id @default(cuid())
+  year            Int
+  month           Int // 1-12
+  workingDays     Int
+  weeklyOffDays   Int
+  holidayDays     Int
+  calendarDays    Int
+  status          PayrollStatus @default(DRAFT)
+  calendarVersion Int           @default(1)
+  finalizedAt     DateTime?
+  finalizedById   String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  payrollRecords PayrollRecord[]
+  advances       SalaryAdvance[]
+
+  @@unique([year, month])
+  @@map("payroll_periods")
+}
+
+model Attendance {
+  id             String           @id @default(cuid())
+  employeeId     String
+  employee       Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  attendanceDate DateTime         @db.Date
+  status         AttendanceStatus
+  remarks        String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@unique([employeeId, attendanceDate])
+  @@index([attendanceDate])
+  @@map("attendance")
+}
+
+// ============================================================
+// ADVANCES
+// ============================================================
+
+model SalaryAdvance {
+  id              String         @id @default(cuid())
+  employeeId      String
+  employee        Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  advanceDate     DateTime       @db.Date
+  amount          Decimal        @db.Decimal(12, 2)
+  reference       String?
+  remarks         String?
+  payrollPeriodId String?
+  payrollPeriod   PayrollPeriod? @relation(fields: [payrollPeriodId], references: [id])
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([employeeId])
+  @@map("salary_advances")
+}
+
+// ============================================================
+// RULE ENGINE (versioned / effective-dated)
+// ============================================================
+
+model BonusRule {
+  id            String   @id @default(cuid())
+  name          String   @default("Full Attendance Bonus")
+  amount        Decimal  @db.Decimal(12, 2)
+  enabled       Boolean  @default(true)
+  effectiveFrom DateTime @db.Date
+  effectiveTo   DateTime? @db.Date
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("bonus_rules")
+}
+
+model PfRule {
+  id            String    @id @default(cuid())
+  ratePercent   Decimal   @db.Decimal(5, 2)
+  wageCeiling   Decimal?  @db.Decimal(12, 2)
+  enabled       Boolean   @default(true)
+  effectiveFrom DateTime  @db.Date
+  effectiveTo   DateTime? @db.Date
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("pf_rules")
+}
+
+model EsiRule {
+  id            String    @id @default(cuid())
+  ratePercent   Decimal   @db.Decimal(5, 2)
+  wageCeiling   Decimal?  @db.Decimal(12, 2)
+  enabled       Boolean   @default(true)
+  effectiveFrom DateTime  @db.Date
+  effectiveTo   DateTime? @db.Date
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("esi_rules")
+}
+
+model PtRule {
+  id            String    @id @default(cuid())
+  minSalary     Decimal   @db.Decimal(12, 2)
+  maxSalary     Decimal?  @db.Decimal(12, 2)
+  ptAmount      Decimal   @db.Decimal(12, 2)
+  enabled       Boolean   @default(true)
+  effectiveFrom DateTime  @db.Date
+  effectiveTo   DateTime? @db.Date
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("pt_rules")
+}
+
+model RttRule {
+  id            String    @id @default(cuid())
+  amount        Decimal   @db.Decimal(12, 2)
+  enabled       Boolean   @default(true)
+  effectiveFrom DateTime  @db.Date
+  effectiveTo   DateTime? @db.Date
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("rtt_rules")
+}
+
+// ============================================================
+// PAYROLL RESULT (source of truth for calculated payroll)
+// ============================================================
+
+model PayrollRecord {
+  id                    String        @id @default(cuid())
+  payrollPeriodId       String
+  payrollPeriod         PayrollPeriod @relation(fields: [payrollPeriodId], references: [id], onDelete: Cascade)
+  employeeId            String
+  employee              Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  // Rate of Pay breakup, snapshotted from EmployeeSalaryConfig at generation time
+  basicSalary           Decimal @db.Decimal(12, 2) @default(0)
+  hra                   Decimal @db.Decimal(12, 2) @default(0)
+  conveyance            Decimal @db.Decimal(12, 2) @default(0)
+  monthlySalary         Decimal @db.Decimal(12, 2)
+  workingDays           Int
+  presentDays           Int
+  actualAbsentDays      Int
+  paidLeave             Int
+  paidLeaveUsed         Int
+  deductibleAbsentDays  Int
+  payableDays           Int
+
+  absenceDeduction      Decimal @db.Decimal(12, 2)
+  salaryAfterAbsence    Decimal @db.Decimal(12, 2)
+  bonusEligible         Boolean @default(false)
+  bonus                 Decimal @db.Decimal(12, 2)
+
+  // Over-Time / Late Hours. dailyRate = ROUND(monthlySalary / workingDays).
+  // otDays is entered manually per employee per period; otAmount =
+  // ROUND_TO_NEAREST_10(otDays * dailyRate) and is added into totalEarnings.
+  dailyRate             Decimal @db.Decimal(12, 2) @default(0)
+  otDays                Decimal @db.Decimal(6, 2) @default(0)
+  otAmount              Decimal @db.Decimal(12, 2) @default(0)
+
+  totalEarnings         Decimal @db.Decimal(12, 2)
+
+  esi                   Decimal @db.Decimal(12, 2)
+  pf                    Decimal @db.Decimal(12, 2)
+  pt                    Decimal @db.Decimal(12, 2)
+  rtt                   Decimal @db.Decimal(12, 2)
+  advance               Decimal @db.Decimal(12, 2)
+  // Manually entered per-employee-per-month deduction (Register of Wages format)
+  canteenCharges        Decimal @db.Decimal(12, 2) @default(0)
+  totalDeductions       Decimal @db.Decimal(12, 2)
+  netSalary             Decimal @db.Decimal(12, 2)
+
+  // How Net Salary is physically disbursed. cashAmount + chequeAmount must
+  // always equal netSalary. Defaults to fully cash; chequeAmount is the
+  // editable field (see /api/payroll/records/[id]/payment).
+  cashAmount            Decimal @db.Decimal(12, 2) @default(0)
+  chequeAmount          Decimal @db.Decimal(12, 2) @default(0)
+
+  // Snapshot of the rules applied, for historical/auditable payroll
+  appliedPfRateId       String?
+  appliedEsiRuleId      String?
+  appliedPtRuleId       String?
+  appliedRttRuleId      String?
+  appliedBonusRuleId    String?
+
+  status                PayrollStatus @default(DRAFT)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([payrollPeriodId, employeeId])
+  @@map("payroll_records")
+}
+
+// ============================================================
+// EXCEL IMPORT
+// ============================================================
+
+model ExcelImport {
+  id              String             @id @default(cuid())
+  importType      ExcelImportType
+  fileName        String
+  totalRecords    Int                @default(0)
+  newRecords      Int                @default(0)
+  updatedRecords  Int                @default(0)
+  duplicateRecords Int               @default(0)
+  errorRecords    Int                @default(0)
+  status          ExcelImportStatus  @default(PENDING)
+  importedById    String?
+  importedBy      User?              @relation(fields: [importedById], references: [id])
+  createdAt       DateTime           @default(now())
+
+  errors ExcelImportError[]
+
+  @@map("excel_imports")
+}
+
+model ExcelImportError {
+  id            String      @id @default(cuid())
+  excelImportId String
+  excelImport   ExcelImport @relation(fields: [excelImportId], references: [id], onDelete: Cascade)
+  rowNumber     Int
+  errorMessage  String
+
+  @@map("excel_import_errors")
+}
+
+// ============================================================
+// AUDIT LOG
+// ============================================================
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  oldValue  Json?
+  newValue  Json?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@map("audit_logs")
+}
+
+// ============================================================
+// COMPANY SETTINGS (singleton)
+// ============================================================
+
+model CompanySettings {
+  id            String   @id @default(cuid())
+  companyName   String   @default("VEEKAY")
+  address       String?
+  logoUrl       String?
+  // Register of Wages header fields
+  managerName   String?
+  statutoryRef  String?  @default("Vide rule 6 A of A.P. PAYMENT OF Wages Rules, 1937")
+  weeklyOffDays Int[]    @default([0]) // 0=Sunday .. 6=Saturday
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("company_settings")
+}
