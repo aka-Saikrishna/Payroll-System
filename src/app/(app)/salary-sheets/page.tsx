@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { PeriodPicker } from "@/components/ui/PeriodPicker";
 import { Toolbar } from "@/components/ui/Toolbar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { CurrencyDisplay } from "@/components/ui/CurrencyDisplay";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ImportPanel } from "@/components/excel/ImportPanel";
 import { DownloadIcon, EyeIcon, PrintIcon } from "@/components/icons";
@@ -17,6 +16,9 @@ import { formatCurrencyINR } from "@/lib/date-utils";
 interface PayrollRecordRow {
   id: string;
   employee: { id: string; employeeCode: string; name: string };
+  basicSalary: string;
+  hra: string;
+  conveyance: string;
   monthlySalary: string;
   workingDays: number;
   presentDays: number;
@@ -24,6 +26,7 @@ interface PayrollRecordRow {
   paidLeave: number;
   paidLeaveUsed: number;
   deductibleAbsentDays: number;
+  payableDays: number;
   salaryAfterAbsence: string;
   bonus: string;
   esi: string;
@@ -34,9 +37,296 @@ interface PayrollRecordRow {
   canteenCharges: string;
   otDays: string;
   otAmount: string;
+  totalEarnings: string;
+  totalDeductions: string;
   netSalary: string;
   cashAmount: string;
   chequeAmount: string;
+}
+
+function EditableAmount({
+  value,
+  onCommit,
+  disabled,
+  width = "w-20",
+  step = "1",
+  align = "right",
+}: {
+  value: number;
+  onCommit: (n: number) => void;
+  disabled?: boolean;
+  width?: string;
+  step?: string;
+  align?: "left" | "right";
+}) {
+  const [local, setLocal] = useState(String(value));
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLocal(String(value));
+    setError(null);
+  }, [value]);
+
+  function commit() {
+    const n = Number(local);
+    if (Number.isNaN(n) || n < 0) {
+      setError("Invalid");
+      setLocal(String(value));
+      return;
+    }
+    setError(null);
+    if (n === value) return;
+    onCommit(n);
+  }
+
+  return (
+    <div className="inline-block">
+      <input
+        type="number"
+        min={0}
+        step={step}
+        disabled={disabled}
+        className={`input py-1 px-1.5 text-xs ${width} ${align === "right" ? "text-right" : ""} disabled:bg-navy-50 disabled:text-navy-400`}
+        value={local}
+        onChange={(e) => setLocal(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        }}
+      />
+      {error && <div className="text-danger-600 text-[10px] leading-tight">{error}</div>}
+    </div>
+  );
+}
+
+function ReadCell({ value, emphasis }: { value: React.ReactNode; emphasis?: boolean }) {
+  return <span className={emphasis ? "font-semibold text-navy-900" : ""}>{value}</span>;
+}
+
+function SalarySheetRow({
+  record,
+  index,
+  year,
+  month,
+  selected,
+  onToggle,
+  isFinalized,
+  onChanged,
+}: {
+  record: PayrollRecordRow;
+  index: number;
+  year: number;
+  month: number;
+  selected: boolean;
+  onToggle: () => void;
+  isFinalized: boolean;
+  onChanged: () => void;
+}) {
+  const [rowError, setRowError] = useState<string | null>(null);
+  const disabled = isFinalized;
+
+  async function post(url: string, body: unknown) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Unable to save");
+    return data;
+  }
+
+  const mutRateOfPay = useMutation({
+    mutationFn: (vals: { basicSalary: number; hra: number; conveyance: number }) =>
+      post(`/api/payroll/records/${record.id}/basic-salary`, vals),
+    onSuccess: () => {
+      setRowError(null);
+      onChanged();
+    },
+    onError: (e: Error) => setRowError(e.message),
+  });
+
+  const mutAbsentDays = useMutation({
+    mutationFn: async (absentDays: number) => {
+      await post("/api/attendance/monthly", { employeeId: record.employee.id, year, month, absentDays });
+      return post(`/api/payroll/records/${record.id}`, {});
+    },
+    onSuccess: () => {
+      setRowError(null);
+      onChanged();
+    },
+    onError: (e: Error) => setRowError(e.message),
+  });
+
+  const mutExtras = useMutation({
+    mutationFn: (vals: { canteenCharges: number; otDays: number }) =>
+      post(`/api/payroll/records/${record.id}/extras`, vals),
+    onSuccess: () => {
+      setRowError(null);
+      onChanged();
+    },
+    onError: (e: Error) => setRowError(e.message),
+  });
+
+  const mutAdvance = useMutation({
+    mutationFn: (amount: number) => post(`/api/payroll/records/${record.id}/advance`, { amount }),
+    onSuccess: () => {
+      setRowError(null);
+      onChanged();
+    },
+    onError: (e: Error) => setRowError(e.message),
+  });
+
+  const mutPayment = useMutation({
+    mutationFn: (chequeAmount: number) => post(`/api/payroll/records/${record.id}/payment`, { chequeAmount }),
+    onSuccess: () => {
+      setRowError(null);
+      onChanged();
+    },
+    onError: (e: Error) => setRowError(e.message),
+  });
+
+  return (
+    <tr className={selected ? "bg-navy-50/60" : undefined}>
+      <td>
+        <input type="checkbox" checked={selected} onChange={onToggle} aria-label={`Select ${record.employee.name}`} />
+      </td>
+      <td>{index + 1}</td>
+      <td className="font-medium text-navy-900 whitespace-nowrap">
+        {record.employee.name}
+        {rowError && <div className="text-danger-600 text-[10px] font-normal">{rowError}</div>}
+      </td>
+
+      {/* Rate of Pay */}
+      <td>
+        <EditableAmount
+          value={Number(record.basicSalary)}
+          disabled={disabled}
+          onCommit={(n) => mutRateOfPay.mutate({ basicSalary: n, hra: Number(record.hra), conveyance: Number(record.conveyance) })}
+        />
+      </td>
+      <td>
+        <EditableAmount
+          value={Number(record.hra)}
+          disabled={disabled}
+          onCommit={(n) => mutRateOfPay.mutate({ basicSalary: Number(record.basicSalary), hra: n, conveyance: Number(record.conveyance) })}
+        />
+      </td>
+      <td>
+        <EditableAmount
+          value={Number(record.conveyance)}
+          disabled={disabled}
+          onCommit={(n) => mutRateOfPay.mutate({ basicSalary: Number(record.basicSalary), hra: Number(record.hra), conveyance: n })}
+        />
+      </td>
+      <td>
+        <ReadCell value={formatCurrencyINR(record.monthlySalary)} emphasis />
+      </td>
+
+      {/* Attendance */}
+      <td>
+        <ReadCell value={record.workingDays} />
+      </td>
+      <td>
+        <ReadCell value={record.presentDays} />
+      </td>
+      <td>
+        <EditableAmount
+          value={record.actualAbsentDays}
+          disabled={disabled}
+          width="w-16"
+          onCommit={(n) => mutAbsentDays.mutate(n)}
+        />
+      </td>
+      <td>
+        <ReadCell value={record.paidLeave} />
+      </td>
+      <td>
+        <ReadCell value={record.paidLeaveUsed} />
+      </td>
+      <td>
+        <ReadCell value={record.deductibleAbsentDays} />
+      </td>
+      <td>
+        <ReadCell value={record.payableDays} emphasis />
+      </td>
+
+      {/* Earned Salary */}
+      <td>
+        <ReadCell value={formatCurrencyINR(record.salaryAfterAbsence)} />
+      </td>
+      <td>
+        <ReadCell value={formatCurrencyINR(record.bonus)} />
+      </td>
+      <td>
+        <EditableAmount
+          value={Number(record.otDays)}
+          disabled={disabled}
+          width="w-14"
+          step="0.5"
+          onCommit={(n) => mutExtras.mutate({ canteenCharges: Number(record.canteenCharges), otDays: n })}
+        />
+      </td>
+      <td>
+        <ReadCell value={formatCurrencyINR(record.otAmount)} />
+      </td>
+      <td>
+        <ReadCell value={formatCurrencyINR(record.totalEarnings)} emphasis />
+      </td>
+
+      {/* Deductions */}
+      <td>
+        <ReadCell value={formatCurrencyINR(record.pf)} />
+      </td>
+      <td>
+        <ReadCell value={formatCurrencyINR(record.esi)} />
+      </td>
+      <td>
+        <ReadCell value={formatCurrencyINR(record.pt)} />
+      </td>
+      <td>
+        <ReadCell value={formatCurrencyINR(record.rtt)} />
+      </td>
+      <td>
+        <EditableAmount value={Number(record.advance)} disabled={disabled} onCommit={(n) => mutAdvance.mutate(n)} />
+      </td>
+      <td>
+        <EditableAmount
+          value={Number(record.canteenCharges)}
+          disabled={disabled}
+          onCommit={(n) => mutExtras.mutate({ canteenCharges: n, otDays: Number(record.otDays) })}
+        />
+      </td>
+      <td>
+        <ReadCell value={formatCurrencyINR(record.totalDeductions)} emphasis />
+      </td>
+
+      {/* Net Salary */}
+      <td>
+        <ReadCell value={formatCurrencyINR(record.netSalary)} emphasis />
+      </td>
+
+      {/* Payment */}
+      <td>
+        <ReadCell value={formatCurrencyINR(record.cashAmount)} />
+      </td>
+      <td>
+        <EditableAmount
+          value={Number(record.chequeAmount)}
+          disabled={disabled}
+          onCommit={(n) => mutPayment.mutate(n)}
+        />
+      </td>
+
+      <td>
+        <div className="flex justify-end">
+          <Link href={`/salary-sheets/${record.id}`} className="btn-ghost px-2 py-1" title="View">
+            <EyeIcon />
+          </Link>
+        </div>
+      </td>
+    </tr>
+  );
 }
 
 export default function SalarySheetsPage() {
@@ -182,20 +472,15 @@ export default function SalarySheetsPage() {
 
   const totals = records.reduce(
     (acc, r) => ({
+      rateOfPay: acc.rateOfPay + Number(r.monthlySalary),
       salary: acc.salary + Number(r.salaryAfterAbsence),
-      deductions:
-        acc.deductions +
-        Number(r.esi) +
-        Number(r.pf) +
-        Number(r.pt) +
-        Number(r.rtt) +
-        Number(r.advance) +
-        Number(r.canteenCharges),
+      earnings: acc.earnings + Number(r.totalEarnings),
+      deductions: acc.deductions + Number(r.totalDeductions),
       net: acc.net + Number(r.netSalary),
       cash: acc.cash + Number(r.cashAmount),
       cheque: acc.cheque + Number(r.chequeAmount),
     }),
-    { salary: 0, deductions: 0, net: 0, cash: 0, cheque: 0 }
+    { rateOfPay: 0, salary: 0, earnings: 0, deductions: 0, net: 0, cash: 0, cheque: 0 }
   );
 
   return (
@@ -268,6 +553,20 @@ export default function SalarySheetsPage() {
 
       {actionError && <div className="rounded-md bg-danger-50 text-danger-700 text-sm px-3 py-2">{actionError}</div>}
 
+      {isFinalized && (
+        <div className="rounded-md bg-navy-50 text-navy-600 text-xs px-3 py-2">
+          This payroll is finalized, so the sheet below is read-only. Click <strong>Reopen Payroll</strong> to edit
+          any figure again.
+        </div>
+      )}
+      {!isFinalized && (
+        <div className="rounded-md bg-navy-50 text-navy-600 text-xs px-3 py-2">
+          Every manually-entered figure (Basic/HRA/Conveyance, Actual Absent, OT Days, Advance, Canteen Charges,
+          Cheque Amount) is editable directly in the cell below — click in, type, and tab or click away to save.
+          Statutory figures (PF, ESI, PT, RTT) and totals are calculated automatically.
+        </div>
+      )}
+
       {periodLoading || recordsLoading ? (
         <div className="card p-8 text-center text-sm text-navy-400">Loading salary sheet...</div>
       ) : records.length === 0 ? (
@@ -285,7 +584,7 @@ export default function SalarySheetsPage() {
           <table className="table-base">
             <thead>
               <tr>
-                <th className="w-8">
+                <th className="w-8" rowSpan={2}>
                   <input
                     type="checkbox"
                     checked={allSelected}
@@ -293,83 +592,84 @@ export default function SalarySheetsPage() {
                     aria-label="Select all employees"
                   />
                 </th>
-                <th>S.No</th>
-                <th>Employee Name</th>
-                <th>Total Salary</th>
-                <th>Working Days</th>
+                <th rowSpan={2}>S.No</th>
+                <th rowSpan={2}>Employee Name</th>
+                <th colSpan={4} className="text-center border-l border-navy-200">
+                  Rate of Pay
+                </th>
+                <th colSpan={7} className="text-center border-l border-navy-200">
+                  Attendance
+                </th>
+                <th colSpan={5} className="text-center border-l border-navy-200">
+                  Earned Salary
+                </th>
+                <th colSpan={7} className="text-center border-l border-navy-200">
+                  Deductions
+                </th>
+                <th rowSpan={2} className="border-l border-navy-200">
+                  Net Salary
+                </th>
+                <th colSpan={2} className="text-center border-l border-navy-200">
+                  Payment
+                </th>
+                <th className="text-right" rowSpan={2}>
+                  Action
+                </th>
+              </tr>
+              <tr>
+                <th className="border-l border-navy-200">Basic Salary</th>
+                <th>HRA</th>
+                <th>Conveyance</th>
+                <th>Total</th>
+                <th className="border-l border-navy-200">Working Days</th>
                 <th>Present Days</th>
                 <th>Actual Absent</th>
                 <th>Paid Leave</th>
                 <th>Paid Leave Used</th>
                 <th>Deductible Absent</th>
-                <th>Salary After Absence</th>
+                <th>Payable Days</th>
+                <th className="border-l border-navy-200">Salary After Absence</th>
                 <th>Bonus</th>
+                <th>OT Days</th>
+                <th>OT Amount</th>
+                <th>Total Earnings</th>
+                <th className="border-l border-navy-200">PF</th>
                 <th>ESI</th>
-                <th>PF</th>
                 <th>PT</th>
                 <th>RTT</th>
                 <th>Advance</th>
                 <th>Canteen</th>
-                <th>OT Days</th>
-                <th>OT Amount</th>
-                <th>Net Salary</th>
-                <th>Net Cash</th>
+                <th>Total</th>
+                <th className="border-l border-navy-200">Net Cash</th>
                 <th>Cheque Amount</th>
-                <th className="text-right">Action</th>
               </tr>
             </thead>
             <tbody>
               {records.map((r, idx) => (
-                <tr key={r.id} className={selectedIds.has(r.employee.id) ? "bg-navy-50/60" : undefined}>
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(r.employee.id)}
-                      onChange={() => toggleSelected(r.employee.id)}
-                      aria-label={`Select ${r.employee.name}`}
-                    />
-                  </td>
-                  <td>{idx + 1}</td>
-                  <td className="font-medium text-navy-900">
-                    {r.employee.name}
-                  </td>
-                  <td>{formatCurrencyINR(r.monthlySalary)}</td>
-                  <td>{r.workingDays}</td>
-                  <td>{r.presentDays}</td>
-                  <td>{r.actualAbsentDays}</td>
-                  <td>{r.paidLeave}</td>
-                  <td>{r.paidLeaveUsed}</td>
-                  <td>{r.deductibleAbsentDays}</td>
-                  <td>{formatCurrencyINR(r.salaryAfterAbsence)}</td>
-                  <td>{formatCurrencyINR(r.bonus)}</td>
-                  <td>{formatCurrencyINR(r.esi)}</td>
-                  <td>{formatCurrencyINR(r.pf)}</td>
-                  <td>{formatCurrencyINR(r.pt)}</td>
-                  <td>{formatCurrencyINR(r.rtt)}</td>
-                  <td>{formatCurrencyINR(r.advance)}</td>
-                  <td>{formatCurrencyINR(r.canteenCharges)}</td>
-                  <td>{r.otDays}</td>
-                  <td>{formatCurrencyINR(r.otAmount)}</td>
-                  <td className="font-semibold text-navy-900">{formatCurrencyINR(r.netSalary)}</td>
-                  <td>{formatCurrencyINR(r.cashAmount)}</td>
-                  <td>{formatCurrencyINR(r.chequeAmount)}</td>
-                  <td>
-                    <div className="flex justify-end">
-                      <Link href={`/salary-sheets/${r.id}`} className="btn-ghost px-2 py-1" title="View">
-                        <EyeIcon />
-                      </Link>
-                    </div>
-                  </td>
-                </tr>
+                <SalarySheetRow
+                  key={r.id}
+                  record={r}
+                  index={idx}
+                  year={year}
+                  month={month}
+                  selected={selectedIds.has(r.employee.id)}
+                  onToggle={() => toggleSelected(r.employee.id)}
+                  isFinalized={isFinalized}
+                  onChanged={refreshAll}
+                />
               ))}
             </tbody>
             <tfoot>
               <tr className="font-semibold bg-navy-50/60">
-                <td colSpan={10} className="text-right pr-3">
+                <td colSpan={6} className="text-right pr-3">
                   Totals
                 </td>
+                <td>{formatCurrencyINR(totals.rateOfPay)}</td>
+                <td colSpan={7}></td>
                 <td>{formatCurrencyINR(totals.salary)}</td>
-                <td colSpan={8}></td>
+                <td colSpan={3}></td>
+                <td>{formatCurrencyINR(totals.earnings)}</td>
+                <td colSpan={6}></td>
                 <td>{formatCurrencyINR(totals.deductions)}</td>
                 <td>{formatCurrencyINR(totals.net)}</td>
                 <td>{formatCurrencyINR(totals.cash)}</td>
@@ -384,8 +684,8 @@ export default function SalarySheetsPage() {
       <ConfirmDialog
         open={finalizeOpen}
         title="Finalize Payroll?"
-        description={`${records.length} employee(s) · Total Salary ${formatCurrencyINR(
-          totals.salary
+        description={`${records.length} employee(s) · Total Earnings ${formatCurrencyINR(
+          totals.earnings
         )} · Total Deductions ${formatCurrencyINR(totals.deductions)} · Total Net Payable ${formatCurrencyINR(
           totals.net
         )}. Once finalized, payroll will be locked from editing.`}
