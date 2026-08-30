@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       prisma.employee.findMany({
         where,
         include: { salaryConfig: true },
-        orderBy: { name: "asc" },
+        orderBy: { employeeCode: "asc" },
         skip,
         take,
       }),

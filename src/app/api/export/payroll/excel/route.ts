@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
       prisma.payrollRecord.findMany({
         where: { payrollPeriodId: periodId, ...(employeeIds ? { employeeId: { in: employeeIds } } : {}) },
         include: { employee: true },
-        orderBy: { employee: { name: "asc" } },
+        orderBy: { employee: { employeeCode: "asc" } },
       }),
       prisma.companySettings.findFirst(),
     ]);

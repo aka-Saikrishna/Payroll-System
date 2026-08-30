@@ -136,16 +136,6 @@ function SalarySheetRow({
     return data;
   }
 
-  const mutRateOfPay = useMutation({
-    mutationFn: (vals: { basicSalary: number; hra: number; conveyance: number }) =>
-      post(`/api/payroll/records/${record.id}/basic-salary`, vals),
-    onSuccess: () => {
-      setRowError(null);
-      onChanged();
-    },
-    onError: (e: Error) => setRowError(e.message),
-  });
-
   const mutAbsentDays = useMutation({
     mutationFn: async (absentDays: number) => {
       await post("/api/attendance/monthly", { employeeId: record.employee.id, year, month, absentDays });
@@ -202,27 +192,15 @@ function SalarySheetRow({
         {rowError && <div className="text-danger-600 text-[10px] font-normal whitespace-normal">{rowError}</div>}
       </td>
 
-      {/* Rate of Pay */}
+      {/* Rate of Pay — edited from the Employees page, read-only here */}
       <td>
-        <EditableAmount
-          value={Number(record.basicSalary)}
-          disabled={disabled}
-          onCommit={(n) => mutRateOfPay.mutate({ basicSalary: n, hra: Number(record.hra), conveyance: Number(record.conveyance) })}
-        />
+        <ReadCell value={formatCurrencyINR(record.basicSalary)} />
       </td>
       <td>
-        <EditableAmount
-          value={Number(record.hra)}
-          disabled={disabled}
-          onCommit={(n) => mutRateOfPay.mutate({ basicSalary: Number(record.basicSalary), hra: n, conveyance: Number(record.conveyance) })}
-        />
+        <ReadCell value={formatCurrencyINR(record.hra)} />
       </td>
       <td>
-        <EditableAmount
-          value={Number(record.conveyance)}
-          disabled={disabled}
-          onCommit={(n) => mutRateOfPay.mutate({ basicSalary: Number(record.basicSalary), hra: Number(record.hra), conveyance: n })}
-        />
+        <ReadCell value={formatCurrencyINR(record.conveyance)} />
       </td>
       <td>
         <ReadCell value={formatCurrencyINR(record.monthlySalary)} emphasis />
@@ -566,9 +544,9 @@ export default function SalarySheetsPage() {
       )}
       {!isFinalized && (
         <div className="rounded-md bg-navy-50 text-navy-600 text-xs px-3 py-2">
-          Every manually-entered figure (Basic/HRA/Conveyance, Actual Absent, OT Days, Advance, Canteen Charges,
-          Cheque Amount) is editable directly in the cell below — click in, type, and tab or click away to save.
-          Statutory figures (PF, ESI, PT, RTT) and totals are calculated automatically.
+          Actual Absent, OT Days, Advance, Canteen Charges and Cheque Amount are editable directly in the cell below —
+          click in, type, and tab or click away to save. Basic Salary, HRA and Conveyance are edited from the
+          Employees page. Statutory figures (PF, ESI, PT, RTT) and totals are calculated automatically.
         </div>
       )}
 
@@ -586,7 +564,7 @@ export default function SalarySheetsPage() {
         />
       ) : (
         <div className="card overflow-x-auto">
-          <table className="table-base">
+          <table className="table-base !border-separate border-spacing-0">
             <thead>
               <tr>
                 <th className="sticky left-0 z-30 w-10 !bg-navy-50" rowSpan={2}>
