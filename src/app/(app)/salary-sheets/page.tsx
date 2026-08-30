@@ -180,12 +180,12 @@ function SalarySheetRow({
 
   return (
     <tr className={selected ? "bg-navy-50/60" : undefined}>
-      <td className={`sticky left-0 z-20 w-10 min-w-[40px] max-w-[40px] ${stickyBg}`}>
+      <td className={`sticky left-0 z-[5] w-10 min-w-[40px] max-w-[40px] ${stickyBg}`}>
         <input type="checkbox" checked={selected} onChange={onToggle} aria-label={`Select ${record.employee.name}`} />
       </td>
-      <td className={`sticky left-10 z-20 w-14 min-w-[56px] max-w-[56px] ${stickyBg}`}>{index + 1}</td>
+      <td className={`sticky left-10 z-[5] w-14 min-w-[56px] max-w-[56px] ${stickyBg}`}>{index + 1}</td>
       <td
-        className={`sticky left-[96px] z-20 w-[220px] min-w-[220px] max-w-[220px] truncate font-medium text-navy-900 whitespace-nowrap border-r border-navy-200 ${stickyBg}`}
+        className={`sticky left-[96px] z-[5] w-[220px] min-w-[220px] max-w-[220px] truncate font-medium text-navy-900 whitespace-nowrap border-r border-navy-200 ${stickyBg}`}
         title={record.employee.name}
       >
         {record.employee.name}
@@ -567,7 +567,7 @@ export default function SalarySheetsPage() {
           <table className="table-base !border-separate border-spacing-0">
             <thead>
               <tr>
-                <th className="sticky left-0 z-30 w-10 min-w-[40px] max-w-[40px] !bg-navy-50" rowSpan={2}>
+                <th className="sticky left-0 z-[6] w-10 min-w-[40px] max-w-[40px] !bg-navy-50" rowSpan={2}>
                   <input
                     type="checkbox"
                     checked={allSelected}
@@ -575,11 +575,11 @@ export default function SalarySheetsPage() {
                     aria-label="Select all employees"
                   />
                 </th>
-                <th className="sticky left-10 z-30 w-14 min-w-[56px] max-w-[56px] !bg-navy-50" rowSpan={2}>
+                <th className="sticky left-10 z-[6] w-14 min-w-[56px] max-w-[56px] !bg-navy-50" rowSpan={2}>
                   S.No
                 </th>
                 <th
-                  className="sticky left-[96px] z-30 w-[220px] min-w-[220px] max-w-[220px] !bg-navy-50 border-r border-navy-200"
+                  className="sticky left-[96px] z-[6] w-[220px] min-w-[220px] max-w-[220px] !bg-navy-50 border-r border-navy-200"
                   rowSpan={2}
                 >
                   Employee Name
