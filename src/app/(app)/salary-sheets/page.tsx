@@ -186,15 +186,20 @@ function SalarySheetRow({
     onError: (e: Error) => setRowError(e.message),
   });
 
+  const stickyBg = selected ? "!bg-navy-100" : "!bg-white";
+
   return (
     <tr className={selected ? "bg-navy-50/60" : undefined}>
-      <td>
+      <td className={`sticky left-0 z-20 w-10 ${stickyBg}`}>
         <input type="checkbox" checked={selected} onChange={onToggle} aria-label={`Select ${record.employee.name}`} />
       </td>
-      <td>{index + 1}</td>
-      <td className="font-medium text-navy-900 whitespace-nowrap">
+      <td className={`sticky left-10 z-20 w-14 ${stickyBg}`}>{index + 1}</td>
+      <td
+        className={`sticky left-[96px] z-20 w-[220px] max-w-[220px] truncate font-medium text-navy-900 whitespace-nowrap border-r border-navy-200 ${stickyBg}`}
+        title={record.employee.name}
+      >
         {record.employee.name}
-        {rowError && <div className="text-danger-600 text-[10px] font-normal">{rowError}</div>}
+        {rowError && <div className="text-danger-600 text-[10px] font-normal whitespace-normal">{rowError}</div>}
       </td>
 
       {/* Rate of Pay */}
@@ -584,7 +589,7 @@ export default function SalarySheetsPage() {
           <table className="table-base">
             <thead>
               <tr>
-                <th className="w-8" rowSpan={2}>
+                <th className="sticky left-0 z-30 w-10 !bg-navy-50" rowSpan={2}>
                   <input
                     type="checkbox"
                     checked={allSelected}
@@ -592,8 +597,15 @@ export default function SalarySheetsPage() {
                     aria-label="Select all employees"
                   />
                 </th>
-                <th rowSpan={2}>S.No</th>
-                <th rowSpan={2}>Employee Name</th>
+                <th className="sticky left-10 z-30 w-14 !bg-navy-50" rowSpan={2}>
+                  S.No
+                </th>
+                <th
+                  className="sticky left-[96px] z-30 w-[220px] !bg-navy-50 border-r border-navy-200"
+                  rowSpan={2}
+                >
+                  Employee Name
+                </th>
                 <th colSpan={4} className="text-center border-l border-navy-200">
                   Rate of Pay
                 </th>
