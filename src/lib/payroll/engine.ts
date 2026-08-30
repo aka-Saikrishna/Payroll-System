@@ -189,6 +189,7 @@ export function computeOvertimeAmount(otDays: number, dailyRate: number): number
 // ------------------------------------------------------------------
 
 export interface EmployeePayrollInput {
+  basicSalary: number;
   monthlySalary: number;
   workingDays: number;
   presentDays: number;
@@ -263,8 +264,11 @@ export function calculateEmployeePayroll(input: EmployeePayrollInput): EmployeeP
 
   const totalEarnings = round2(salaryAfterAbsence + bonus + otAmount);
 
-  const pf = computePf(input.pfRule, input.pfApplicable, salaryAfterAbsence);
-  const esi = computeEsi(input.esiRule, input.esiApplicable, salaryAfterAbsence);
+  // PF is levied on Basic Salary only (not HRA/Conveyance, and not the
+  // absence-adjusted amount). ESI is levied on Total Earnings — salary
+  // after absence deduction, plus bonus and OT.
+  const pf = computePf(input.pfRule, input.pfApplicable, input.basicSalary);
+  const esi = computeEsi(input.esiRule, input.esiApplicable, totalEarnings);
   // Professional Tax is levied on the full contracted Rate of Pay, not on
   // the absence-adjusted amount — verified against the factory's register
   // (a worker on Rs.21,000/month still pays the Rs.200 slab in a month where

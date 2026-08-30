@@ -125,6 +125,7 @@ export async function generatePayrollForPeriod(payrollPeriodId: string, userId: 
     });
 
     const result = calculateEmployeePayroll({
+      basicSalary: toNum(employee.salaryConfig.basicSalary),
       monthlySalary: toNum(employee.salaryConfig.monthlySalary),
       workingDays: period.workingDays,
       presentDays,
@@ -264,6 +265,7 @@ export async function recalculateSingleEmployeePayroll(payrollPeriodId: string, 
   });
 
   const result = calculateEmployeePayroll({
+    basicSalary: toNum(employee.salaryConfig.basicSalary),
     monthlySalary: toNum(employee.salaryConfig.monthlySalary),
     workingDays: period.workingDays,
     presentDays,

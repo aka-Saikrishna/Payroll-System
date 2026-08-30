@@ -169,6 +169,7 @@ describe("PT slab resolution", () => {
   // If PT were charged on earned salary both would have fallen in the Rs.0 slab.
   it("heavy absence drops earnings to 10,161 but PT still uses the 21,000 rate of pay", () => {
     const r = calculateEmployeePayroll({
+      basicSalary: 21000,
       monthlySalary: 21000,
       workingDays: 31,
       presentDays: 15,
@@ -193,6 +194,7 @@ describe("PT slab resolution", () => {
 
   it("earnings of 13,548 would fall in the zero slab, but PT follows the 60,000 rate of pay", () => {
     const r = calculateEmployeePayroll({
+      basicSalary: 60000,
       monthlySalary: 60000,
       workingDays: 31,
       presentDays: 7,
@@ -213,6 +215,64 @@ describe("PT slab resolution", () => {
     });
     expect(Math.round(r.salaryAfterAbsence)).toBe(13548);
     expect(r.pt).toBe(200);
+  });
+});
+
+describe("PF and ESI wage bases — PF on Basic Salary, ESI on Total Earnings", () => {
+  const pfRule = { enabled: true, ratePercent: 12, wageCeiling: null };
+  const esiRule = { enabled: true, ratePercent: 0.75, wageCeiling: 21000 };
+  const bonusRule = { enabled: true, amount: 200 };
+
+  it("PF is charged on the full Basic Salary even under heavy absence, not the absence-adjusted amount", () => {
+    const r = calculateEmployeePayroll({
+      basicSalary: 15000,
+      monthlySalary: 21000, // Basic 15000 + HRA/Conveyance 6000
+      workingDays: 31,
+      presentDays: 15,
+      actualAbsentDays: 16,
+      advanceAmount: 0,
+      canteenCharges: 0,
+      otDays: 0,
+      paidLeaveApplicable: false,
+      pfApplicable: true,
+      esiApplicable: false,
+      ptApplicable: false,
+      rttApplicable: false,
+      bonusRule: null,
+      pfRule,
+      esiRule: null,
+      ptSlabs: [],
+      rttRule: null,
+    });
+    expect(r.salaryAfterAbsence).toBeLessThan(15000); // earnings did drop
+    expect(r.pf).toBe(1800); // 12% of the full 15000 Basic, unaffected by absence
+  });
+
+  it("ESI is charged on Total Earnings (salary after absence + bonus + OT), not just salary after absence", () => {
+    const r = calculateEmployeePayroll({
+      basicSalary: 20000,
+      monthlySalary: 20000,
+      workingDays: 25,
+      presentDays: 25,
+      actualAbsentDays: 0,
+      advanceAmount: 0,
+      canteenCharges: 0,
+      otDays: 5,
+      paidLeaveApplicable: false,
+      pfApplicable: false,
+      esiApplicable: true,
+      ptApplicable: false,
+      rttApplicable: false,
+      bonusRule,
+      pfRule: null,
+      esiRule,
+      ptSlabs: [],
+      rttRule: null,
+    });
+    // Total Earnings (20000 + bonus + OT) exceeds the 21000 ESI ceiling, so ESI is 0 here —
+    // proving ESI now looks at totalEarnings, not the lower salaryAfterAbsence (20000) alone.
+    expect(r.totalEarnings).toBeGreaterThan(21000);
+    expect(r.esi).toBe(0);
   });
 });
 
@@ -282,6 +342,7 @@ describe("calculateEmployeePayroll — end to end (spec sample payroll flow, sec
 
   it("Prakash: full attendance, gets bonus, PF+PT applicable", () => {
     const r = calculateEmployeePayroll({
+      basicSalary: 20000,
       monthlySalary: 20000,
       workingDays: 25,
       presentDays: 25,
@@ -311,6 +372,7 @@ describe("calculateEmployeePayroll — end to end (spec sample payroll flow, sec
 
   it("Ravi: 1 absence covered by paid leave, no deduction, no bonus", () => {
     const r = calculateEmployeePayroll({
+      basicSalary: 18000,
       monthlySalary: 18000,
       workingDays: 25,
       presentDays: 24,
@@ -337,6 +399,7 @@ describe("calculateEmployeePayroll — end to end (spec sample payroll flow, sec
 
   it("Suresh: 3 actual absences, 1 covered, 2 deductible", () => {
     const r = calculateEmployeePayroll({
+      basicSalary: 20000,
       monthlySalary: 20000,
       workingDays: 25,
       presentDays: 22,
@@ -362,6 +425,7 @@ describe("calculateEmployeePayroll — end to end (spec sample payroll flow, sec
 
   it("advance reduces net salary directly", () => {
     const r = calculateEmployeePayroll({
+      basicSalary: 20000,
       monthlySalary: 20000,
       workingDays: 25,
       presentDays: 25,
@@ -387,6 +451,7 @@ describe("calculateEmployeePayroll — end to end (spec sample payroll flow, sec
   it("rejects negative advance", () => {
     expect(() =>
       calculateEmployeePayroll({
+        basicSalary: 20000,
         monthlySalary: 20000,
         workingDays: 25,
         presentDays: 25,
