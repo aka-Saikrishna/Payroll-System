@@ -218,7 +218,7 @@ describe("PT slab resolution", () => {
   });
 });
 
-describe("PF and ESI wage bases — PF on Basic Salary, ESI on Total Earnings", () => {
+describe("PF and ESI wage bases — PF on Basic Salary, ESI on Salary After Absence", () => {
   const pfRule = { enabled: true, ratePercent: 12, wageCeiling: null };
   const esiRule = { enabled: true, ratePercent: 0.75, wageCeiling: 21000 };
   const bonusRule = { enabled: true, amount: 200 };
@@ -248,7 +248,7 @@ describe("PF and ESI wage bases — PF on Basic Salary, ESI on Total Earnings", 
     expect(r.pf).toBe(1800); // 12% of the full 15000 Basic, unaffected by absence
   });
 
-  it("ESI is charged on Total Earnings (salary after absence + bonus + OT), not just salary after absence", () => {
+  it("ESI is charged on Salary After Absence, ignoring bonus and OT even when they'd push earnings over the ceiling", () => {
     const r = calculateEmployeePayroll({
       basicSalary: 20000,
       monthlySalary: 20000,
@@ -269,10 +269,12 @@ describe("PF and ESI wage bases — PF on Basic Salary, ESI on Total Earnings", 
       ptSlabs: [],
       rttRule: null,
     });
-    // Total Earnings (20000 + bonus + OT) exceeds the 21000 ESI ceiling, so ESI is 0 here —
-    // proving ESI now looks at totalEarnings, not the lower salaryAfterAbsence (20000) alone.
+    // Total Earnings (20000 + bonus + OT) exceeds the 21000 ESI ceiling, but ESI still
+    // looks only at Salary After Absence (20000, under the ceiling) — proving bonus/OT
+    // don't factor into the ESI wage base or its ceiling check.
     expect(r.totalEarnings).toBeGreaterThan(21000);
-    expect(r.esi).toBe(0);
+    expect(r.salaryAfterAbsence).toBe(20000);
+    expect(r.esi).toBe(150); // 0.75% of 20000
   });
 });
 
