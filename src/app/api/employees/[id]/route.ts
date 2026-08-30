@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole, requireSession, handleApiError, ApiError } from "@/lib/api-helpers";
 import { employeeSchema } from "@/lib/validation/employee";
 import { writeAuditLog } from "@/lib/audit";
+import { recalculateSingleEmployeePayroll } from "@/lib/payroll/payrollService";
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -88,6 +89,17 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       oldValue: JSON.parse(JSON.stringify(before)),
       newValue: body,
     });
+
+    // Re-snapshot the new Rate of Pay into any already-generated payroll record
+    // for this employee that isn't finalized yet, so the Salary Sheet doesn't
+    // keep showing stale Basic/HRA/Conveyance figures after an edit here.
+    const openRecords = await prisma.payrollRecord.findMany({
+      where: { employeeId: employee.id, payrollPeriod: { status: { not: "FINALIZED" } } },
+      select: { payrollPeriodId: true },
+    });
+    for (const rec of openRecords) {
+      await recalculateSingleEmployeePayroll(rec.payrollPeriodId, employee.id, session.sub);
+    }
 
     return NextResponse.json({ employee });
   } catch (error) {
