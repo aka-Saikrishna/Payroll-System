@@ -7,6 +7,13 @@ export const attendanceSchema = z.object({
   remarks: z.string().optional().or(z.literal("")),
 });
 
+export const attendanceMonthlySchema = z.object({
+  employeeId: z.string().min(1),
+  year: z.coerce.number().int().min(2000).max(2100),
+  month: z.coerce.number().int().min(1).max(12),
+  absentDays: z.coerce.number().int().min(0),
+});
+
 export const advanceSchema = z.object({
   employeeId: z.string().min(1),
   advanceDate: z.string().min(1),

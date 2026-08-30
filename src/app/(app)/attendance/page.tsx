@@ -1,13 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PeriodPicker } from "@/components/ui/PeriodPicker";
 import { Toolbar } from "@/components/ui/Toolbar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ImportPanel } from "@/components/excel/ImportPanel";
-import { FormDrawer } from "@/components/ui/FormDrawer";
-import { PlusIcon } from "@/components/icons";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 
 interface AttendanceRow {
@@ -24,6 +22,71 @@ interface AttendanceRow {
   payableDays: number;
 }
 
+function AttendanceRowItem({ row, year, month, onSaved }: { row: AttendanceRow; year: number; month: number; onSaved: () => void }) {
+  const [value, setValue] = useState(String(row.actualAbsentDays));
+  const [error, setError] = useState<string | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: async (absentDays: number) => {
+      const res = await fetch("/api/attendance/monthly", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ employeeId: row.employeeId, year, month, absentDays }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Unable to save attendance");
+      return data;
+    },
+    onSuccess: () => {
+      setError(null);
+      onSaved();
+    },
+    onError: (e: Error) => {
+      setError(e.message);
+      setValue(String(row.actualAbsentDays));
+    },
+  });
+
+  function commit() {
+    const n = parseInt(value, 10);
+    if (Number.isNaN(n) || n < 0) {
+      setError("Enter a valid number of days");
+      setValue(String(row.actualAbsentDays));
+      return;
+    }
+    if (n === row.actualAbsentDays) return;
+    mutation.mutate(n);
+  }
+
+  return (
+    <tr>
+      <td className="font-medium text-navy-900">{row.name}</td>
+      <td>{row.workingDays}</td>
+      <td>{row.presentDays}</td>
+      <td>
+        <input
+          type="number"
+          min={0}
+          max={row.workingDays}
+          className="input w-20 py-1"
+          value={value}
+          disabled={mutation.isPending}
+          onChange={(e) => setValue(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          }}
+        />
+        {error && <div className="text-danger-600 text-[11px] mt-0.5">{error}</div>}
+      </td>
+      <td>{row.paidLeave}</td>
+      <td>{row.paidLeaveUsed}</td>
+      <td>{row.deductibleAbsentDays}</td>
+      <td className="font-medium">{row.payableDays}</td>
+    </tr>
+  );
+}
+
 export default function AttendancePage() {
   const queryClient = useQueryClient();
   const now = new Date();
@@ -31,10 +94,6 @@ export default function AttendancePage() {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
-  const [markOpen, setMarkOpen] = useState(false);
-  const [markForm, setMarkForm] = useState({ employeeId: "", attendanceDate: "", status: "PRESENT" });
-  const [markError, setMarkError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["attendance-summary", year, month, debouncedSearch],
@@ -46,38 +105,8 @@ export default function AttendancePage() {
     },
   });
 
-  const { data: employeesData } = useQuery({
-    queryKey: ["employees-all"],
-    queryFn: async () => {
-      const res = await fetch("/api/employees?pageSize=200");
-      return res.json();
-    },
-  });
-
   function refresh() {
     queryClient.invalidateQueries({ queryKey: ["attendance-summary"] });
-  }
-
-  async function handleMarkSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSubmitting(true);
-    setMarkError(null);
-    try {
-      const res = await fetch("/api/attendance", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(markForm),
-      });
-      const resData = await res.json();
-      if (!res.ok) {
-        setMarkError(resData.error || "Unable to save attendance");
-        return;
-      }
-      setMarkOpen(false);
-      refresh();
-    } finally {
-      setSubmitting(false);
-    }
   }
 
   const rows: AttendanceRow[] = data?.rows || [];
@@ -104,9 +133,6 @@ export default function AttendancePage() {
           templateUrl="/api/import/attendance/template"
           onImported={refresh}
         />
-        <button className="btn-primary" onClick={() => { setMarkError(null); setMarkOpen(true); }}>
-          <PlusIcon /> Add/Edit Attendance
-        </button>
       </Toolbar>
 
       {isLoading ? (
@@ -114,10 +140,14 @@ export default function AttendancePage() {
       ) : rows.length === 0 ? (
         <EmptyState
           title={`No attendance found for this month.`}
-          description="Upload an attendance Excel file or add records manually."
+          description="Upload an attendance Excel file or enter Actual Absent Days directly in the table."
         />
       ) : (
         <div className="card overflow-x-auto">
+          <p className="text-xs text-navy-500 px-4 pt-3">
+            Enter the number of Actual Absent Days for an employee — Present Days, Deductible Absent Days and Payable
+            Days are calculated automatically.
+          </p>
           <table className="table-base">
             <thead>
               <tr>
@@ -133,76 +163,12 @@ export default function AttendancePage() {
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.employeeId}>
-                  <td className="font-medium text-navy-900">
-                    {r.name}
-                  </td>
-                  <td>{r.workingDays}</td>
-                  <td>{r.presentDays}</td>
-                  <td>{r.actualAbsentDays}</td>
-                  <td>{r.paidLeave}</td>
-                  <td>{r.paidLeaveUsed}</td>
-                  <td>{r.deductibleAbsentDays}</td>
-                  <td className="font-medium">{r.payableDays}</td>
-                </tr>
+                <AttendanceRowItem key={r.employeeId} row={r} year={year} month={month} onSaved={refresh} />
               ))}
             </tbody>
           </table>
         </div>
       )}
-
-      <FormDrawer open={markOpen} title="Add / Edit Attendance" onClose={() => setMarkOpen(false)} width="max-w-md">
-        <form onSubmit={handleMarkSubmit} className="space-y-4">
-          {markError && <div className="rounded-md bg-danger-50 text-danger-700 text-sm px-3 py-2">{markError}</div>}
-          <div>
-            <label className="label">Employee</label>
-            <select
-              className="input"
-              value={markForm.employeeId}
-              onChange={(e) => setMarkForm((f) => ({ ...f, employeeId: e.target.value }))}
-              required
-            >
-              <option value="">Select employee</option>
-              {(employeesData?.employees || []).map((e: { id: string; employeeCode: string; name: string }) => (
-                <option key={e.id} value={e.id}>
-                  {e.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="label">Date</label>
-            <input
-              type="date"
-              className="input"
-              value={markForm.attendanceDate}
-              onChange={(e) => setMarkForm((f) => ({ ...f, attendanceDate: e.target.value }))}
-              required
-            />
-          </div>
-          <div>
-            <label className="label">Status</label>
-            <select
-              className="input"
-              value={markForm.status}
-              onChange={(e) => setMarkForm((f) => ({ ...f, status: e.target.value }))}
-            >
-              <option value="PRESENT">Present</option>
-              <option value="ABSENT">Absent</option>
-              <option value="WEEKLY_OFF">Weekly Off</option>
-              <option value="HOLIDAY">Holiday</option>
-            </select>
-          </div>
-          <div className="flex justify-end gap-2 pt-2 border-t border-navy-100">
-            <button type="button" className="btn-secondary" onClick={() => setMarkOpen(false)}>
-              Cancel
-            </button>
-            <button type="submit" className="btn-primary" disabled={submitting}>
-              {submitting ? "Saving..." : "Save"}
-            </button>
-          </div>
-        </form>
-      </FormDrawer>
     </div>
   );
 }
