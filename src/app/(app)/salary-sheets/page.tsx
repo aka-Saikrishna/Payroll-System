@@ -565,7 +565,7 @@ export default function SalarySheetsPage() {
       ) : (
         <div className="card overflow-x-auto">
           <table className="table-base !border-separate border-spacing-0">
-            <thead>
+            <thead className="sticky top-14 z-[8]">
               <tr>
                 <th className="sticky left-0 z-[6] w-10 min-w-[40px] max-w-[40px] !bg-navy-50" rowSpan={2}>
                   <input
@@ -584,54 +584,54 @@ export default function SalarySheetsPage() {
                 >
                   Employee Name
                 </th>
-                <th colSpan={4} className="text-center border-l border-navy-200">
+                <th colSpan={4} className="text-center border-l border-navy-200 !bg-navy-50">
                   Rate of Pay
                 </th>
-                <th colSpan={7} className="text-center border-l border-navy-200">
+                <th colSpan={7} className="text-center border-l border-navy-200 !bg-navy-50">
                   Attendance
                 </th>
-                <th colSpan={5} className="text-center border-l border-navy-200">
+                <th colSpan={5} className="text-center border-l border-navy-200 !bg-navy-50">
                   Earned Salary
                 </th>
-                <th colSpan={7} className="text-center border-l border-navy-200">
+                <th colSpan={7} className="text-center border-l border-navy-200 !bg-navy-50">
                   Deductions
                 </th>
-                <th rowSpan={2} className="border-l border-navy-200">
+                <th rowSpan={2} className="border-l border-navy-200 !bg-navy-50">
                   Net Salary
                 </th>
-                <th colSpan={2} className="text-center border-l border-navy-200">
+                <th colSpan={2} className="text-center border-l border-navy-200 !bg-navy-50">
                   Payment
                 </th>
-                <th className="text-right" rowSpan={2}>
+                <th className="text-right !bg-navy-50" rowSpan={2}>
                   Action
                 </th>
               </tr>
               <tr>
-                <th className="border-l border-navy-200">Basic Salary</th>
-                <th>HRA</th>
-                <th>Conveyance</th>
-                <th>Total</th>
-                <th className="border-l border-navy-200">Working Days</th>
-                <th>Present Days</th>
-                <th>Actual Absent</th>
-                <th>Paid Leave</th>
-                <th>Paid Leave Used</th>
-                <th>Deductible Absent</th>
-                <th>Payable Days</th>
-                <th className="border-l border-navy-200">Salary After Absence</th>
-                <th>Bonus</th>
-                <th>OT Days</th>
-                <th>OT Amount</th>
-                <th>Total Earnings</th>
-                <th className="border-l border-navy-200">PF</th>
-                <th>ESI</th>
-                <th>PT</th>
-                <th>RTT</th>
-                <th>Advance</th>
-                <th>Canteen</th>
-                <th>Total</th>
-                <th className="border-l border-navy-200">Net Cash</th>
-                <th>Cheque Amount</th>
+                <th className="border-l border-navy-200 !bg-navy-50">Basic Salary</th>
+                <th className="!bg-navy-50">HRA</th>
+                <th className="!bg-navy-50">Conveyance</th>
+                <th className="!bg-navy-50">Total</th>
+                <th className="border-l border-navy-200 !bg-navy-50">Working Days</th>
+                <th className="!bg-navy-50">Present Days</th>
+                <th className="!bg-navy-50">Actual Absent</th>
+                <th className="!bg-navy-50">Paid Leave</th>
+                <th className="!bg-navy-50">Paid Leave Used</th>
+                <th className="!bg-navy-50">Deductible Absent</th>
+                <th className="!bg-navy-50">Payable Days</th>
+                <th className="border-l border-navy-200 !bg-navy-50">Salary After Absence</th>
+                <th className="!bg-navy-50">Bonus</th>
+                <th className="!bg-navy-50">OT Days</th>
+                <th className="!bg-navy-50">OT Amount</th>
+                <th className="!bg-navy-50">Total Earnings</th>
+                <th className="border-l border-navy-200 !bg-navy-50">PF</th>
+                <th className="!bg-navy-50">ESI</th>
+                <th className="!bg-navy-50">PT</th>
+                <th className="!bg-navy-50">RTT</th>
+                <th className="!bg-navy-50">Advance</th>
+                <th className="!bg-navy-50">Canteen</th>
+                <th className="!bg-navy-50">Total</th>
+                <th className="border-l border-navy-200 !bg-navy-50">Net Cash</th>
+                <th className="!bg-navy-50">Cheque Amount</th>
               </tr>
             </thead>
             <tbody>

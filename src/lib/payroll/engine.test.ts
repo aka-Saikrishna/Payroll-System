@@ -117,15 +117,25 @@ describe("full attendance bonus eligibility", () => {
 
 describe("PF calculation", () => {
   it("not applicable -> 0", () => {
-    expect(computePf({ enabled: true, ratePercent: 12, wageCeiling: null }, false, 20000)).toBe(0);
+    expect(computePf({ enabled: true, ratePercent: 12, wageCeiling: null }, false, 20000, 30, 30)).toBe(0);
   });
 
-  it("applies rate to wage base with no ceiling", () => {
-    expect(computePf({ enabled: true, ratePercent: 12, wageCeiling: null }, true, 20000)).toBe(2400);
+  it("applies rate to full Basic Salary with no ceiling, under full attendance", () => {
+    expect(computePf({ enabled: true, ratePercent: 12, wageCeiling: null }, true, 20000, 30, 30)).toBe(2400);
   });
 
-  it("caps wage base at the configured ceiling", () => {
-    expect(computePf({ enabled: true, ratePercent: 12, wageCeiling: 15000 }, true, 20000)).toBe(1800);
+  it("caps Basic Salary at the configured ceiling before prorating", () => {
+    expect(computePf({ enabled: true, ratePercent: 12, wageCeiling: 15000 }, true, 20000, 30, 30)).toBe(1800);
+  });
+
+  // Verified against the factory's own PF calculation for Vallala Prakash:
+  // 14000 / 31 * 30 * 12% = 1625.806... -> rounds to Rs.1626.
+  it("prorates Basic Salary by Present Days / Working Days, rounded to the nearest rupee", () => {
+    expect(computePf({ enabled: true, ratePercent: 12, wageCeiling: null }, true, 14000, 31, 30)).toBe(1626);
+  });
+
+  it("0 present days under a PF-applicable employee -> PF of 0", () => {
+    expect(computePf({ enabled: true, ratePercent: 12, wageCeiling: null }, true, 14000, 31, 0)).toBe(0);
   });
 });
 
@@ -218,12 +228,12 @@ describe("PT slab resolution", () => {
   });
 });
 
-describe("PF and ESI wage bases — PF on Basic Salary, ESI on Salary After Absence", () => {
+describe("PF and ESI wage bases — PF prorated on Basic Salary, ESI on Salary After Absence", () => {
   const pfRule = { enabled: true, ratePercent: 12, wageCeiling: null };
   const esiRule = { enabled: true, ratePercent: 0.75, wageCeiling: 21000 };
   const bonusRule = { enabled: true, amount: 200 };
 
-  it("PF is charged on the full Basic Salary even under heavy absence, not the absence-adjusted amount", () => {
+  it("PF drops proportionally under heavy absence, since it prorates Basic Salary by Present Days", () => {
     const r = calculateEmployeePayroll({
       basicSalary: 15000,
       monthlySalary: 21000, // Basic 15000 + HRA/Conveyance 6000
@@ -245,7 +255,7 @@ describe("PF and ESI wage bases — PF on Basic Salary, ESI on Salary After Abse
       rttRule: null,
     });
     expect(r.salaryAfterAbsence).toBeLessThan(15000); // earnings did drop
-    expect(r.pf).toBe(1800); // 12% of the full 15000 Basic, unaffected by absence
+    expect(r.pf).toBe(871); // 15000 / 31 * 15 * 12% = 870.97 -> 871
   });
 
   it("ESI is charged on Salary After Absence, ignoring bonus and OT even when they'd push earnings over the ceiling", () => {

@@ -125,10 +125,23 @@ export interface PfRuleConfig {
   wageCeiling: number | null;
 }
 
-export function computePf(rule: PfRuleConfig | null, applicable: boolean, wageBase: number): number {
+// PF is charged on Basic Salary prorated for days actually present in the
+// month — not the full monthly Basic — then rounded to the nearest rupee:
+//   PF = ROUND(Basic Salary / Working Days * Present Days * Rate%)
+// Verified against the factory's own calculation for Vallala Prakash:
+// 14000 / 31 * 30 * 12% = 1625.806... -> Rs.1626.
+export function computePf(
+  rule: PfRuleConfig | null,
+  applicable: boolean,
+  basicSalary: number,
+  workingDays: number,
+  presentDays: number
+): number {
   if (!applicable || !rule || !rule.enabled) return 0;
-  const base = rule.wageCeiling != null ? Math.min(wageBase, rule.wageCeiling) : wageBase;
-  return round2(base * (rule.ratePercent / 100));
+  if (workingDays <= 0) return 0;
+  const cappedBasic = rule.wageCeiling != null ? Math.min(basicSalary, rule.wageCeiling) : basicSalary;
+  const proRatedBasic = (cappedBasic / workingDays) * presentDays;
+  return Math.round(proRatedBasic * (rule.ratePercent / 100));
 }
 
 export interface EsiRuleConfig {
@@ -264,10 +277,10 @@ export function calculateEmployeePayroll(input: EmployeePayrollInput): EmployeeP
 
   const totalEarnings = round2(salaryAfterAbsence + bonus + otAmount);
 
-  // PF is levied on Basic Salary only (not HRA/Conveyance, and not the
-  // absence-adjusted amount). ESI is levied on Salary After Absence —
-  // the Rate of Pay after the absentee deduction, excluding bonus/OT.
-  const pf = computePf(input.pfRule, input.pfApplicable, input.basicSalary);
+  // PF is levied on Basic Salary prorated by days present (see computePf).
+  // ESI is levied on Salary After Absence — the Rate of Pay after the
+  // absentee deduction, excluding bonus/OT.
+  const pf = computePf(input.pfRule, input.pfApplicable, input.basicSalary, input.workingDays, input.presentDays);
   const esi = computeEsi(input.esiRule, input.esiApplicable, salaryAfterAbsence);
   // Professional Tax is levied on the full contracted Rate of Pay, not on
   // the absence-adjusted amount — verified against the factory's register
