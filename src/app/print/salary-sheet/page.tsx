@@ -404,15 +404,15 @@ function PrintSalarySheetContent() {
             padding: 12px 12px !important;
             height: 100% !important;
             box-sizing: border-box !important;
-            font-size: 10px !important;
+            font-size: 11px !important;
             line-height: 1.5 !important;
           }
           .payslip-col h4 {
-            font-size: 9.5px !important;
+            font-size: 10.5px !important;
           }
-          .payslip-col .text-\\[10px\\] { font-size: 9.5px !important; }
-          .payslip-col .text-\\[11px\\] { font-size: 10px !important; }
-          .payslip-col .text-\\[13px\\] { font-size: 11.5px !important; }
+          .payslip-col .text-\\[10px\\] { font-size: 10.5px !important; }
+          .payslip-col .text-\\[11px\\] { font-size: 11px !important; }
+          .payslip-col .text-\\[13px\\] { font-size: 12.5px !important; }
           .payslip-col-empty {
             border: none !important;
           }
