@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
-import { mainNav, settingsNav } from "./nav-config";
+import { mainNav, vpflNav, settingsNav } from "./nav-config";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
 
 export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const pathname = usePathname();
 
-  const allHrefs = [...mainNav, ...settingsNav].map((item) => item.href);
+  const allHrefs = [...mainNav, ...vpflNav, ...settingsNav].map((item) => item.href);
   const bestMatch = allHrefs
     .filter((href) => pathname === href || pathname.startsWith(href + "/"))
     .sort((a, b) => b.length - a.length)[0];
@@ -46,9 +46,23 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
       </div>
 
       <nav className="flex-1 overflow-y-auto px-2 py-4 space-y-1">
+        {!collapsed && (
+          <div className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wide text-navy-500">VEEJAY POLYPLAST PVT LTD</div>
+        )}
         {mainNav.map((item) => (
           <NavItem key={item.href} {...item} />
         ))}
+
+        <div className="pt-4 mt-4 border-t border-navy-800">
+          {!collapsed && (
+            <div className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wide text-navy-500">VPFL</div>
+          )}
+          <div className="space-y-1">
+            {vpflNav.map((item) => (
+              <NavItem key={item.href} {...item} />
+            ))}
+          </div>
+        </div>
 
         <div className="pt-4 mt-4 border-t border-navy-800">
           {!collapsed && (
@@ -61,10 +75,6 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
           </div>
         </div>
       </nav>
-
-      <div className="px-3 py-4 border-t border-navy-800 text-xs text-navy-500">
-        {!collapsed ? "More modules coming soon" : "···"}
-      </div>
     </aside>
   );
 }

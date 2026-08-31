@@ -203,31 +203,31 @@ export default function DeductionRulesPage() {
             <>
               <div>
                 <label className="label">Minimum Salary</label>
-                <input type="number" step="0.01" className="input" value={String(form.minSalary ?? "")} onChange={(e) => setForm((f) => ({ ...f, minSalary: e.target.value }))} required />
+                <input type="text" inputMode="numeric" className="input" value={String(form.minSalary ?? "")} onChange={(e) => setForm((f) => ({ ...f, minSalary: e.target.value }))} required />
               </div>
               <div>
                 <label className="label">Maximum Salary (blank = no limit)</label>
-                <input type="number" step="0.01" className="input" value={String(form.maxSalary ?? "")} onChange={(e) => setForm((f) => ({ ...f, maxSalary: e.target.value }))} />
+                <input type="text" inputMode="numeric" className="input" value={String(form.maxSalary ?? "")} onChange={(e) => setForm((f) => ({ ...f, maxSalary: e.target.value }))} />
               </div>
               <div>
                 <label className="label">PT Amount</label>
-                <input type="number" step="0.01" className="input" value={String(form.ptAmount ?? "")} onChange={(e) => setForm((f) => ({ ...f, ptAmount: e.target.value }))} required />
+                <input type="text" inputMode="numeric" className="input" value={String(form.ptAmount ?? "")} onChange={(e) => setForm((f) => ({ ...f, ptAmount: e.target.value }))} required />
               </div>
             </>
           ) : tab === "rtt" ? (
             <div>
               <label className="label">Amount</label>
-              <input type="number" step="0.01" className="input" value={String(form.amount ?? "")} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} required />
+              <input type="text" inputMode="numeric" className="input" value={String(form.amount ?? "")} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} required />
             </div>
           ) : (
             <>
               <div>
                 <label className="label">Rate (%)</label>
-                <input type="number" step="0.01" className="input" value={String(form.ratePercent ?? "")} onChange={(e) => setForm((f) => ({ ...f, ratePercent: e.target.value }))} required />
+                <input type="text" inputMode="numeric" className="input" value={String(form.ratePercent ?? "")} onChange={(e) => setForm((f) => ({ ...f, ratePercent: e.target.value }))} required />
               </div>
               <div>
                 <label className="label">Wage Ceiling (blank = no limit)</label>
-                <input type="number" step="0.01" className="input" value={String(form.wageCeiling ?? "")} onChange={(e) => setForm((f) => ({ ...f, wageCeiling: e.target.value }))} />
+                <input type="text" inputMode="numeric" className="input" value={String(form.wageCeiling ?? "")} onChange={(e) => setForm((f) => ({ ...f, wageCeiling: e.target.value }))} />
               </div>
             </>
           )}

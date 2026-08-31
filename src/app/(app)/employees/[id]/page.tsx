@@ -6,10 +6,12 @@ import Link from "next/link";
 import { CurrencyDisplay } from "@/components/ui/CurrencyDisplay";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { MONTH_NAMES, formatDate } from "@/lib/date-utils";
+import { useCompany } from "@/lib/hooks/useCompany";
 
 export default function EmployeeDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const company = useCompany();
 
   const { data, isLoading } = useQuery({
     queryKey: ["employee", params.id],
@@ -93,7 +95,7 @@ export default function EmployeeDetailPage() {
             {history.map((r) => (
               <Link
                 key={r.id}
-                href={`/salary-sheets/${r.id}`}
+                href={`${company.prefix}/salary-sheets/${r.id}`}
                 className="border border-navy-100 rounded-md p-3 hover:border-navy-300 transition-colors"
               >
                 <div className="text-sm font-medium text-navy-900">

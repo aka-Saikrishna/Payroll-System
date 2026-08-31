@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
+import { Prisma, PayrollStatus } from "@prisma/client";
 import { computeCalendarBreakdown } from "./period";
 import { resolveApplicableRule, resolveApplicablePtSlabs } from "./rules";
-import { calculateEmployeePayroll, computeOvertimeAmount } from "./engine";
+import { calculateEmployeePayroll, computeOvertimeAmount, roundToNearest10 } from "./engine";
 import { writeAuditLog } from "@/lib/audit";
 import { ApiError } from "@/lib/api-helpers";
 
@@ -98,7 +98,7 @@ async function computeAdvanceAmount(employeeId: string, payrollPeriodId: string,
   return advances.reduce((sum, a) => sum + toNum(a.amount), 0);
 }
 
-export async function generatePayrollForPeriod(payrollPeriodId: string, userId: string | null) {
+export async function generatePayrollForPeriod(payrollPeriodId: string, userId: string | null, company: string = "VPPL") {
   const period = await findPeriodOrThrow(payrollPeriodId);
   if (period.status === "FINALIZED") {
     throw new ApiError(409, "Payroll period is finalized. Reopen it before regenerating.");
@@ -107,29 +107,60 @@ export async function generatePayrollForPeriod(payrollPeriodId: string, userId: 
   const monthStart = new Date(Date.UTC(period.year, period.month - 1, 1));
   const monthEnd = new Date(Date.UTC(period.year, period.month, 0));
 
-  const employees = await prisma.employee.findMany({
-    where: { status: "ACTIVE" },
-    include: { salaryConfig: true },
-  });
+  const [employees, ruleSet, allAttendance, allAdvances, allExisting] = await Promise.all([
+    prisma.employee.findMany({
+      where: { status: "ACTIVE", company },
+      include: { salaryConfig: true },
+    }),
+    loadRuleSet(monthEnd),
+    prisma.attendance.findMany({
+      where: { attendanceDate: { gte: monthStart, lte: monthEnd }, employee: { status: "ACTIVE", company } },
+      select: { employeeId: true, status: true },
+    }),
+    prisma.salaryAdvance.findMany({
+      where: {
+        employee: { status: "ACTIVE", company },
+        OR: [{ payrollPeriodId }, { payrollPeriodId: null, advanceDate: { gte: monthStart, lte: monthEnd } }],
+      },
+      select: { employeeId: true, amount: true },
+    }),
+    prisma.payrollRecord.findMany({
+      where: { payrollPeriodId, employee: { status: "ACTIVE", company } },
+      select: { employeeId: true, chequeAmount: true, canteenCharges: true, otDays: true },
+    }),
+  ]);
 
-  const ruleSet = await loadRuleSet(monthEnd);
+  const attendanceByEmployee = new Map<string, { present: number; absent: number }>();
+  for (const rec of allAttendance) {
+    const entry = attendanceByEmployee.get(rec.employeeId) ?? { present: 0, absent: 0 };
+    if (rec.status === "PRESENT") entry.present++;
+    else if (rec.status === "ABSENT") entry.absent++;
+    attendanceByEmployee.set(rec.employeeId, entry);
+  }
 
+  const advanceByEmployee = new Map<string, number>();
+  for (const adv of allAdvances) {
+    advanceByEmployee.set(adv.employeeId, (advanceByEmployee.get(adv.employeeId) ?? 0) + toNum(adv.amount));
+  }
+
+  const existingByEmployee = new Map(allExisting.map((e) => [e.employeeId, e]));
+
+  const upserts: Prisma.PrismaPromise<unknown>[] = [];
   let processed = 0;
+
   for (const employee of employees) {
-    if (!employee.salaryConfig) continue; // skip employees without payroll configuration
-    const { presentDays, actualAbsentDays } = await computeAttendanceCounts(employee.id, monthStart, monthEnd);
-    const advanceAmount = await computeAdvanceAmount(employee.id, payrollPeriodId, monthStart, monthEnd);
-    const existing = await prisma.payrollRecord.findUnique({
-      where: { payrollPeriodId_employeeId: { payrollPeriodId, employeeId: employee.id } },
-      select: { chequeAmount: true, canteenCharges: true, otDays: true },
-    });
+    if (!employee.salaryConfig) continue;
+
+    const counts = attendanceByEmployee.get(employee.id) ?? { present: 0, absent: 0 };
+    const advanceAmount = advanceByEmployee.get(employee.id) ?? 0;
+    const existing = existingByEmployee.get(employee.id);
 
     const result = calculateEmployeePayroll({
       basicSalary: toNum(employee.salaryConfig.basicSalary),
       monthlySalary: toNum(employee.salaryConfig.monthlySalary),
       workingDays: period.workingDays,
-      presentDays,
-      actualAbsentDays,
+      presentDays: counts.present,
+      actualAbsentDays: counts.absent,
       advanceAmount,
       canteenCharges: existing ? toNum(existing.canteenCharges) : 0,
       otDays: existing ? toNum(existing.otDays) : 0,
@@ -154,83 +185,54 @@ export async function generatePayrollForPeriod(payrollPeriodId: string, userId: 
       monthlySalary: employee.salaryConfig.monthlySalary,
     };
 
-    await prisma.payrollRecord.upsert({
-      where: { payrollPeriodId_employeeId: { payrollPeriodId, employeeId: employee.id } },
-      create: {
-        payrollPeriodId,
-        employeeId: employee.id,
-        ...salarySnapshot,
-        workingDays: result.workingDays,
-        presentDays: result.presentDays,
-        actualAbsentDays: result.actualAbsentDays,
-        paidLeave: result.paidLeave,
-        paidLeaveUsed: result.paidLeaveUsed,
-        deductibleAbsentDays: result.deductibleAbsentDays,
-        payableDays: result.payableDays,
-        absenceDeduction: result.absenceDeduction,
-        salaryAfterAbsence: result.salaryAfterAbsence,
-        bonusEligible: result.bonusEligible,
-        bonus: result.bonus,
-        dailyRate: result.dailyRate,
-        otDays: result.otDays,
-        otAmount: result.otAmount,
-        totalEarnings: result.totalEarnings,
-        esi: result.esi,
-        pf: result.pf,
-        pt: result.pt,
-        rtt: result.rtt,
-        advance: result.advance,
-        canteenCharges: result.canteenCharges,
-        totalDeductions: result.totalDeductions,
-        netSalary: result.netSalary,
-        cashAmount,
-        chequeAmount,
-        appliedPfRateId: ruleSet.pfRule?.id ?? null,
-        appliedEsiRuleId: ruleSet.esiRule?.id ?? null,
-        appliedRttRuleId: ruleSet.rttRule?.id ?? null,
-        appliedBonusRuleId: ruleSet.bonusRule?.id ?? null,
-        status: "REVIEW",
-      },
-      update: {
-        ...salarySnapshot,
-        workingDays: result.workingDays,
-        presentDays: result.presentDays,
-        actualAbsentDays: result.actualAbsentDays,
-        paidLeave: result.paidLeave,
-        paidLeaveUsed: result.paidLeaveUsed,
-        deductibleAbsentDays: result.deductibleAbsentDays,
-        payableDays: result.payableDays,
-        absenceDeduction: result.absenceDeduction,
-        salaryAfterAbsence: result.salaryAfterAbsence,
-        bonusEligible: result.bonusEligible,
-        bonus: result.bonus,
-        dailyRate: result.dailyRate,
-        otDays: result.otDays,
-        otAmount: result.otAmount,
-        totalEarnings: result.totalEarnings,
-        esi: result.esi,
-        pf: result.pf,
-        pt: result.pt,
-        rtt: result.rtt,
-        advance: result.advance,
-        canteenCharges: result.canteenCharges,
-        totalDeductions: result.totalDeductions,
-        netSalary: result.netSalary,
-        cashAmount,
-        chequeAmount,
-        appliedPfRateId: ruleSet.pfRule?.id ?? null,
-        appliedEsiRuleId: ruleSet.esiRule?.id ?? null,
-        appliedRttRuleId: ruleSet.rttRule?.id ?? null,
-        appliedBonusRuleId: ruleSet.bonusRule?.id ?? null,
-        status: "REVIEW",
-      },
-    });
+    const recordData = {
+      ...salarySnapshot,
+      workingDays: result.workingDays,
+      presentDays: result.presentDays,
+      actualAbsentDays: result.actualAbsentDays,
+      paidLeave: result.paidLeave,
+      paidLeaveUsed: result.paidLeaveUsed,
+      deductibleAbsentDays: result.deductibleAbsentDays,
+      payableDays: result.payableDays,
+      absenceDeduction: result.absenceDeduction,
+      salaryAfterAbsence: result.salaryAfterAbsence,
+      bonusEligible: result.bonusEligible,
+      bonus: result.bonus,
+      dailyRate: result.dailyRate,
+      otDays: result.otDays,
+      otAmount: result.otAmount,
+      totalEarnings: result.totalEarnings,
+      esi: result.esi,
+      pf: result.pf,
+      pt: result.pt,
+      rtt: result.rtt,
+      advance: result.advance,
+      canteenCharges: result.canteenCharges,
+      totalDeductions: result.totalDeductions,
+      netSalary: result.netSalary,
+      cashAmount,
+      chequeAmount,
+      appliedPfRateId: ruleSet.pfRule?.id ?? null,
+      appliedEsiRuleId: ruleSet.esiRule?.id ?? null,
+      appliedRttRuleId: ruleSet.rttRule?.id ?? null,
+      appliedBonusRuleId: ruleSet.bonusRule?.id ?? null,
+      status: "REVIEW" as PayrollStatus,
+    };
+
+    upserts.push(
+      prisma.payrollRecord.upsert({
+        where: { payrollPeriodId_employeeId: { payrollPeriodId, employeeId: employee.id } },
+        create: { payrollPeriodId, employeeId: employee.id, ...recordData },
+        update: recordData,
+      })
+    );
     processed++;
   }
 
-  await prisma.payrollPeriod.update({ where: { id: payrollPeriodId }, data: { status: "REVIEW" } });
+  upserts.push(prisma.payrollPeriod.update({ where: { id: payrollPeriodId }, data: { status: "REVIEW" } }));
+  await prisma.$transaction(upserts);
 
-  await writeAuditLog({
+  writeAuditLog({
     userId,
     action: "PAYROLL_GENERATED",
     entity: "PayrollPeriod",
@@ -242,27 +244,28 @@ export async function generatePayrollForPeriod(payrollPeriodId: string, userId: 
 }
 
 export async function recalculateSingleEmployeePayroll(payrollPeriodId: string, employeeId: string, userId: string | null) {
-  const period = await findPeriodOrThrow(payrollPeriodId);
+  const [period, employee] = await Promise.all([
+    findPeriodOrThrow(payrollPeriodId),
+    prisma.employee.findUnique({ where: { id: employeeId }, include: { salaryConfig: true } }),
+  ]);
   if (period.status === "FINALIZED") {
     throw new ApiError(409, "Payroll period is finalized. Reopen it before recalculating.");
   }
-  const employee = await prisma.employee.findUnique({
-    where: { id: employeeId },
-    include: { salaryConfig: true },
-  });
   if (!employee) throw new ApiError(404, "This employee could not be found. Please refresh the page and try again.");
   if (!employee.salaryConfig) throw new ApiError(400, "Employee has no payroll configuration");
 
   const monthStart = new Date(Date.UTC(period.year, period.month - 1, 1));
   const monthEnd = new Date(Date.UTC(period.year, period.month, 0));
 
-  const ruleSet = await loadRuleSet(monthEnd);
-  const { presentDays, actualAbsentDays } = await computeAttendanceCounts(employeeId, monthStart, monthEnd);
-  const advanceAmount = await computeAdvanceAmount(employeeId, payrollPeriodId, monthStart, monthEnd);
-  const existing = await prisma.payrollRecord.findUnique({
-    where: { payrollPeriodId_employeeId: { payrollPeriodId, employeeId } },
-    select: { chequeAmount: true, canteenCharges: true, otDays: true },
-  });
+  const [ruleSet, { presentDays, actualAbsentDays }, advanceAmount, existing] = await Promise.all([
+    loadRuleSet(monthEnd),
+    computeAttendanceCounts(employeeId, monthStart, monthEnd),
+    computeAdvanceAmount(employeeId, payrollPeriodId, monthStart, monthEnd),
+    prisma.payrollRecord.findUnique({
+      where: { payrollPeriodId_employeeId: { payrollPeriodId, employeeId } },
+      select: { chequeAmount: true, canteenCharges: true, otDays: true },
+    }),
+  ]);
 
   const result = calculateEmployeePayroll({
     basicSalary: toNum(employee.salaryConfig.basicSalary),
@@ -321,7 +324,7 @@ export async function recalculateSingleEmployeePayroll(payrollPeriodId: string, 
     },
   });
 
-  await writeAuditLog({
+  writeAuditLog({
     userId,
     action: "PAYROLL_RECALCULATED",
     entity: "PayrollRecord",
@@ -356,11 +359,11 @@ export async function updatePayrollExtras(
   }
 
   const otAmount = computeOvertimeAmount(extras.otDays, toNum(record.dailyRate));
-  const totalEarnings = round2(toNum(record.salaryAfterAbsence) + toNum(record.bonus) + otAmount);
+  const totalEarnings = roundToNearest10(toNum(record.salaryAfterAbsence) + toNum(record.bonus) + otAmount);
   const totalDeductions = round2(
     toNum(record.esi) + toNum(record.pf) + toNum(record.pt) + toNum(record.rtt) + toNum(record.advance) + extras.canteenCharges
   );
-  const netSalary = round2(totalEarnings - totalDeductions);
+  const netSalary = roundToNearest10(totalEarnings - totalDeductions);
   const { cashAmount, chequeAmount } = computePaymentSplit(netSalary, toNum(record.chequeAmount));
 
   const updated = await prisma.payrollRecord.update({
@@ -377,7 +380,7 @@ export async function updatePayrollExtras(
     },
   });
 
-  await writeAuditLog({
+  writeAuditLog({
     userId,
     action: "PAYROLL_EXTRAS_UPDATED",
     entity: "PayrollRecord",

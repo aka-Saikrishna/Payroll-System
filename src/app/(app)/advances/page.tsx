@@ -11,6 +11,7 @@ import { FormDrawer } from "@/components/ui/FormDrawer";
 import { ImportPanel } from "@/components/excel/ImportPanel";
 import { PlusIcon, EditIcon, TrashIcon } from "@/components/icons";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
+import { useCompany } from "@/lib/hooks/useCompany";
 import { formatDate, toDateInputValue } from "@/lib/date-utils";
 
 interface AdvanceRow {
@@ -24,6 +25,7 @@ interface AdvanceRow {
 
 export default function AdvancesPage() {
   const queryClient = useQueryClient();
+  const company = useCompany();
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
   const [page, setPage] = useState(1);
@@ -35,9 +37,9 @@ export default function AdvancesPage() {
   const [form, setForm] = useState({ employeeId: "", advanceDate: "", amount: "", reference: "", remarks: "" });
 
   const { data, isLoading } = useQuery({
-    queryKey: ["advances", debouncedSearch, page],
+    queryKey: ["advances", company.code, debouncedSearch, page],
     queryFn: async () => {
-      const params = new URLSearchParams({ page: String(page), pageSize: "20" });
+      const params = new URLSearchParams({ page: String(page), pageSize: "20", company: company.code });
       if (debouncedSearch) params.set("search", debouncedSearch);
       const res = await fetch(`/api/advances?${params}`);
       return res.json();
@@ -45,9 +47,9 @@ export default function AdvancesPage() {
   });
 
   const { data: employeesData } = useQuery({
-    queryKey: ["employees-all"],
+    queryKey: ["employees-all", company.code],
     queryFn: async () => {
-      const res = await fetch("/api/employees?pageSize=200");
+      const res = await fetch(`/api/employees?pageSize=200&company=${company.code}`);
       return res.json();
     },
   });
@@ -211,8 +213,8 @@ export default function AdvancesPage() {
           <div>
             <label className="label">Amount</label>
             <input
-              type="number"
-              step="0.01"
+              type="text"
+              inputMode="numeric"
               className="input"
               value={form.amount}
               onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}

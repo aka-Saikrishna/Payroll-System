@@ -44,10 +44,10 @@
     @apply w-full text-sm border-collapse;
   }
   .table-base th {
-    @apply text-left font-medium text-navy-500 text-xs uppercase tracking-wide px-3 py-2 border-b border-navy-100 bg-navy-50/60;
+    @apply text-left font-medium text-navy-500 text-xs uppercase tracking-wide px-3 py-2 border-b border-navy-200 bg-navy-50/60;
   }
   .table-base td {
-    @apply px-3 py-2 border-b border-navy-50 text-navy-800;
+    @apply px-3 py-2 border-b border-navy-200 text-navy-800;
   }
 }
 

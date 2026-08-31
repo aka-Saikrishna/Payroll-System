@@ -275,7 +275,7 @@ export function calculateEmployeePayroll(input: EmployeePayrollInput): EmployeeP
   const dailyRate = computeDailyRate(input.monthlySalary, input.workingDays);
   const otAmount = computeOvertimeAmount(input.otDays, dailyRate);
 
-  const totalEarnings = round2(salaryAfterAbsence + bonus + otAmount);
+  const totalEarnings = roundToNearest10(salaryAfterAbsence + bonus + otAmount);
 
   // PF is levied on Basic Salary prorated by days present (see computePf).
   // ESI is levied on Salary After Absence — the Rate of Pay after the
@@ -292,7 +292,7 @@ export function calculateEmployeePayroll(input: EmployeePayrollInput): EmployeeP
   const canteenCharges = round2(input.canteenCharges);
 
   const totalDeductions = round2(esi + pf + pt + rtt + advance + canteenCharges);
-  const netSalary = round2(totalEarnings - totalDeductions);
+  const netSalary = roundToNearest10(totalEarnings - totalDeductions);
 
   return {
     workingDays: input.workingDays,

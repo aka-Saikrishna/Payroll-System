@@ -35,7 +35,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       data: { cashAmount, chequeAmount },
     });
 
-    await writeAuditLog({
+    writeAuditLog({
       userId: session.sub,
       action: "PAYROLL_PAYMENT_SPLIT_UPDATED",
       entity: "PayrollRecord",

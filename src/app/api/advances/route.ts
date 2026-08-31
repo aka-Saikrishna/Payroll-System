@@ -12,16 +12,21 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search")?.trim();
     const { page, pageSize, skip, take } = paginationParams(searchParams);
 
-    const where: Prisma.SalaryAdvanceWhereInput = search
-      ? {
-          employee: {
-            OR: [
-              { employeeCode: { contains: search, mode: "insensitive" } },
-              { name: { contains: search, mode: "insensitive" } },
-            ],
-          },
-        }
-      : {};
+    const company = searchParams.get("company")?.trim() || "VPPL";
+
+    const where: Prisma.SalaryAdvanceWhereInput = {
+      employee: {
+        company,
+        ...(search
+          ? {
+              OR: [
+                { employeeCode: { contains: search, mode: "insensitive" } },
+                { name: { contains: search, mode: "insensitive" } },
+              ],
+            }
+          : {}),
+      },
+    };
 
     const [advances, total] = await Promise.all([
       prisma.salaryAdvance.findMany({

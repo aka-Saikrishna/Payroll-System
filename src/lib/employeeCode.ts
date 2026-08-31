@@ -1,20 +1,23 @@
 import { prisma } from "@/lib/prisma";
 
-/**
- * Auto-generates the next sequential employee code (EMP001, EMP002, ...).
- * Employee ID is no longer entered manually in the UI (see EmployeeForm.tsx).
- */
-export async function generateNextEmployeeCode(): Promise<string> {
+const COMPANY_PREFIXES: Record<string, string> = {
+  VPPL: "EMP",
+  VPFL: "VPF",
+};
+
+export async function generateNextEmployeeCode(company: string = "VPPL"): Promise<string> {
+  const prefix = COMPANY_PREFIXES[company] || "EMP";
   const employees = await prisma.employee.findMany({
-    where: { employeeCode: { startsWith: "EMP" } },
+    where: { employeeCode: { startsWith: prefix } },
     select: { employeeCode: true },
   });
 
   let max = 0;
+  const re = new RegExp(`^${prefix}(\\d+)$`, "i");
   for (const e of employees) {
-    const match = /^EMP(\d+)$/i.exec(e.employeeCode);
+    const match = re.exec(e.employeeCode);
     if (match) max = Math.max(max, parseInt(match[1], 10));
   }
 
-  return `EMP${String(max + 1).padStart(3, "0")}`;
+  return `${prefix}${String(max + 1).padStart(3, "0")}`;
 }

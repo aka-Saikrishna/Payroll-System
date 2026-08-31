@@ -15,6 +15,7 @@ import { EmployeeForm } from "./EmployeeForm";
 import { PlusIcon, EditIcon, EmployeeOffIcon, EyeIcon } from "@/components/icons";
 import { EmployeeInput } from "@/lib/validation/employee";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
+import { useCompany } from "@/lib/hooks/useCompany";
 
 interface EmployeeRow {
   id: string;
@@ -38,6 +39,7 @@ interface EmployeeRow {
 
 export default function EmployeesPage() {
   const queryClient = useQueryClient();
+  const company = useCompany();
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
   const [page, setPage] = useState(1);
@@ -48,9 +50,9 @@ export default function EmployeesPage() {
   const [formError, setFormError] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["employees", debouncedSearch, page],
+    queryKey: ["employees", company.code, debouncedSearch, page],
     queryFn: async () => {
-      const params = new URLSearchParams({ page: String(page), pageSize: "100", status: "ACTIVE" });
+      const params = new URLSearchParams({ page: String(page), pageSize: "100", status: "ACTIVE", company: company.code });
       if (debouncedSearch) params.set("search", debouncedSearch);
       const res = await fetch(`/api/employees?${params}`);
       return res.json();
@@ -70,7 +72,7 @@ export default function EmployeesPage() {
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        body: JSON.stringify({ ...values, company: company.code }),
       });
       const resData = await res.json();
       if (!res.ok) {
@@ -183,7 +185,7 @@ export default function EmployeesPage() {
                   </td>
                   <td>
                     <div className="flex justify-end gap-1">
-                      <Link href={`/employees/${emp.id}`} className="btn-ghost px-2 py-1" title="View">
+                      <Link href={`${company.prefix}/employees/${emp.id}`} className="btn-ghost px-2 py-1" title="View">
                         <EyeIcon />
                       </Link>
                       <button

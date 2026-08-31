@@ -128,17 +128,17 @@ export function EmployeeForm({
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="label">Basic Salary</label>
-            <input type="number" step="0.01" className="input" {...register("basicSalary")} />
+            <input type="text" inputMode="numeric" className="input" {...register("basicSalary")} />
             {errors.basicSalary && <p className="text-xs text-danger-500 mt-1">{errors.basicSalary.message}</p>}
           </div>
           <div>
             <label className="label">HRA</label>
-            <input type="number" step="0.01" className="input" {...register("hra")} />
+            <input type="text" inputMode="numeric" className="input" {...register("hra")} />
             {errors.hra && <p className="text-xs text-danger-500 mt-1">{errors.hra.message}</p>}
           </div>
           <div>
             <label className="label">Conveyance</label>
-            <input type="number" step="0.01" className="input" {...register("conveyance")} />
+            <input type="text" inputMode="numeric" className="input" {...register("conveyance")} />
             {errors.conveyance && <p className="text-xs text-danger-500 mt-1">{errors.conveyance.message}</p>}
           </div>
         </div>

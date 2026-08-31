@@ -7,6 +7,8 @@ import { Toolbar } from "@/components/ui/Toolbar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ImportPanel } from "@/components/excel/ImportPanel";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
+import { useCompany } from "@/lib/hooks/useCompany";
+import { computeAttendanceDerivedFields } from "@/lib/payroll/engine";
 
 interface AttendanceRow {
   employeeId: string;
@@ -20,9 +22,21 @@ interface AttendanceRow {
   paidLeaveUsed: number;
   deductibleAbsentDays: number;
   payableDays: number;
+  paidLeaveApplicable?: boolean;
 }
 
-function AttendanceRowItem({ row, year, month, onSaved }: { row: AttendanceRow; year: number; month: number; onSaved: () => void }) {
+function AttendanceRowItem({
+  row,
+  year,
+  month,
+  queryKey,
+}: {
+  row: AttendanceRow;
+  year: number;
+  month: number;
+  queryKey: unknown[];
+}) {
+  const queryClient = useQueryClient();
   const [value, setValue] = useState(String(row.actualAbsentDays));
   const [error, setError] = useState<string | null>(null);
 
@@ -37,14 +51,37 @@ function AttendanceRowItem({ row, year, month, onSaved }: { row: AttendanceRow; 
       if (!res.ok) throw new Error(data.error || "Unable to save attendance");
       return data;
     },
-    onSuccess: () => {
-      setError(null);
-      onSaved();
+    onMutate: async (absentDays: number) => {
+      await queryClient.cancelQueries({ queryKey });
+      const prev = queryClient.getQueryData(queryKey);
+
+      queryClient.setQueryData(queryKey, (old: { period: unknown; rows: AttendanceRow[] } | undefined) => {
+        if (!old) return old;
+        return {
+          ...old,
+          rows: old.rows.map((r) => {
+            if (r.employeeId !== row.employeeId) return r;
+            const presentDays = r.workingDays - absentDays;
+            const derived = computeAttendanceDerivedFields({
+              workingDays: r.workingDays,
+              presentDays,
+              actualAbsentDays: absentDays,
+              paidLeaveApplicable: r.paidLeaveApplicable ?? false,
+            });
+            return { ...r, presentDays, actualAbsentDays: absentDays, ...derived };
+          }),
+        };
+      });
+
+      return { prev };
     },
-    onError: (e: Error) => {
+    onError: (e: Error, _absentDays, context) => {
       setError(e.message);
       setValue(String(row.actualAbsentDays));
+      if (context?.prev) queryClient.setQueryData(queryKey, context.prev);
     },
+    onSuccess: () => setError(null),
+    onSettled: () => queryClient.invalidateQueries({ queryKey }),
   });
 
   function commit() {
@@ -55,6 +92,7 @@ function AttendanceRowItem({ row, year, month, onSaved }: { row: AttendanceRow; 
       return;
     }
     if (n === row.actualAbsentDays) return;
+    setError(null);
     mutation.mutate(n);
   }
 
@@ -65,12 +103,10 @@ function AttendanceRowItem({ row, year, month, onSaved }: { row: AttendanceRow; 
       <td>{row.presentDays}</td>
       <td>
         <input
-          type="number"
-          min={0}
-          max={row.workingDays}
+          type="text"
+          inputMode="numeric"
           className="input w-20 py-1"
           value={value}
-          disabled={mutation.isPending}
           onChange={(e) => setValue(e.target.value)}
           onBlur={commit}
           onKeyDown={(e) => {
@@ -88,26 +124,24 @@ function AttendanceRowItem({ row, year, month, onSaved }: { row: AttendanceRow; 
 }
 
 export default function AttendancePage() {
-  const queryClient = useQueryClient();
+  const company = useCompany();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
 
+  const queryKey = ["attendance-summary", company.code, year, month, debouncedSearch];
+
   const { data, isLoading } = useQuery({
-    queryKey: ["attendance-summary", year, month, debouncedSearch],
+    queryKey,
     queryFn: async () => {
-      const params = new URLSearchParams({ year: String(year), month: String(month) });
+      const params = new URLSearchParams({ year: String(year), month: String(month), company: company.code });
       if (debouncedSearch) params.set("search", debouncedSearch);
       const res = await fetch(`/api/attendance/summary?${params}`);
       return res.json();
     },
   });
-
-  function refresh() {
-    queryClient.invalidateQueries({ queryKey: ["attendance-summary"] });
-  }
 
   const rows: AttendanceRow[] = data?.rows || [];
 
@@ -131,7 +165,7 @@ export default function AttendancePage() {
           previewUrl="/api/import/attendance"
           confirmUrl="/api/import/attendance"
           templateUrl="/api/import/attendance/template"
-          onImported={refresh}
+          onImported={() => {}}
         />
       </Toolbar>
 
@@ -163,7 +197,7 @@ export default function AttendancePage() {
             </thead>
             <tbody>
               {rows.map((r) => (
-                <AttendanceRowItem key={r.employeeId} row={r} year={year} month={month} onSaved={refresh} />
+                <AttendanceRowItem key={r.employeeId} row={r} year={year} month={month} queryKey={queryKey} />
               ))}
             </tbody>
           </table>

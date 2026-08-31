@@ -56,7 +56,7 @@ function LoginForm_() {
     <div className="min-h-screen flex items-center justify-center bg-surface px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="text-2xl font-bold tracking-tight text-navy-900">VEEKAY</div>
+          <div className="text-2xl font-bold tracking-tight text-navy-900">Veejay Ploy Plast Pvt Ltd</div>
           <div className="text-sm text-navy-500 mt-1">Payroll System</div>
         </div>
 

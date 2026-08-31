@@ -16,8 +16,11 @@ export async function GET(request: NextRequest) {
 
     const period = await getOrCreatePayrollPeriod(year, month);
 
+    const company = searchParams.get("company")?.trim() || "VPPL";
+
     const where: Prisma.EmployeeWhereInput = {
       status: "ACTIVE",
+      company,
       ...(department ? { department } : {}),
       ...(search
         ? {
@@ -38,33 +41,39 @@ export async function GET(request: NextRequest) {
     const monthStart = new Date(Date.UTC(year, month - 1, 1));
     const monthEnd = new Date(Date.UTC(year, month, 0));
 
-    const rows = await Promise.all(
-      employees.map(async (employee) => {
-        const records = await prisma.attendance.findMany({
-          where: { employeeId: employee.id, attendanceDate: { gte: monthStart, lte: monthEnd } },
-        });
-        const presentDays = records.filter((r) => r.status === "PRESENT").length;
-        const actualAbsentDays = records.filter((r) => r.status === "ABSENT").length;
+    const allAttendance = await prisma.attendance.findMany({
+      where: { attendanceDate: { gte: monthStart, lte: monthEnd }, employeeId: { in: employees.map((e) => e.id) } },
+      select: { employeeId: true, status: true },
+    });
 
-        const derived = computeAttendanceDerivedFields({
-          workingDays: period.workingDays,
-          presentDays,
-          actualAbsentDays,
-          paidLeaveApplicable: employee.salaryConfig?.paidLeaveApplicable ?? false,
-        });
+    const attendanceByEmployee = new Map<string, { present: number; absent: number }>();
+    for (const rec of allAttendance) {
+      const entry = attendanceByEmployee.get(rec.employeeId) ?? { present: 0, absent: 0 };
+      if (rec.status === "PRESENT") entry.present++;
+      else if (rec.status === "ABSENT") entry.absent++;
+      attendanceByEmployee.set(rec.employeeId, entry);
+    }
 
-        return {
-          employeeId: employee.id,
-          employeeCode: employee.employeeCode,
-          name: employee.name,
-          department: employee.department,
-          workingDays: period.workingDays,
-          presentDays,
-          actualAbsentDays,
-          ...derived,
-        };
-      })
-    );
+    const rows = employees.map((employee) => {
+      const counts = attendanceByEmployee.get(employee.id) ?? { present: 0, absent: 0 };
+      const derived = computeAttendanceDerivedFields({
+        workingDays: period.workingDays,
+        presentDays: counts.present,
+        actualAbsentDays: counts.absent,
+        paidLeaveApplicable: employee.salaryConfig?.paidLeaveApplicable ?? false,
+      });
+      return {
+        employeeId: employee.id,
+        employeeCode: employee.employeeCode,
+        name: employee.name,
+        department: employee.department,
+        workingDays: period.workingDays,
+        presentDays: counts.present,
+        actualAbsentDays: counts.absent,
+        paidLeaveApplicable: employee.salaryConfig?.paidLeaveApplicable ?? false,
+        ...derived,
+      };
+    });
 
     return NextResponse.json({ period, rows });
   } catch (error) {

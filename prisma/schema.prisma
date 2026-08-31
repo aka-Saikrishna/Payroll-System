@@ -100,6 +100,7 @@ model Employee {
   id            String         @id @default(cuid())
   employeeCode  String         @unique
   name          String
+  company       String         @default("VPPL")
   mobile        String?
   email         String?
   address       String?
@@ -117,6 +118,7 @@ model Employee {
 
   @@map("employees")
   @@index([name])
+  @@index([company])
 }
 
 model EmployeeSalaryConfig {

@@ -188,9 +188,8 @@ export default function SalarySheetDetailPage() {
             <div>
               <label className="label">Canteen Charges</label>
               <input
-                type="number"
-                step="0.01"
-                min="0"
+                type="text"
+                inputMode="numeric"
                 className="input"
                 value={canteenInput}
                 disabled={isFinalized}
@@ -200,9 +199,8 @@ export default function SalarySheetDetailPage() {
             <div>
               <label className="label">OT Days</label>
               <input
-                type="number"
-                step="0.5"
-                min="0"
+                type="text"
+                inputMode="numeric"
                 className="input"
                 value={otDaysInput}
                 disabled={isFinalized}
@@ -248,10 +246,8 @@ export default function SalarySheetDetailPage() {
               <div>
                 <label className="label">Cheque Amount</label>
                 <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  max={netSalary}
+                  type="text"
+                  inputMode="numeric"
                   className="input"
                   value={chequeInput}
                   disabled={isFinalized}

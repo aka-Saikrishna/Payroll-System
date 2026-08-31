@@ -11,6 +11,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ImportPanel } from "@/components/excel/ImportPanel";
 import { DownloadIcon, EyeIcon, PrintIcon } from "@/components/icons";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
+import { useCompany } from "@/lib/hooks/useCompany";
 import { formatCurrencyINR } from "@/lib/date-utils";
 
 interface PayrollRecordRow {
@@ -27,6 +28,7 @@ interface PayrollRecordRow {
   paidLeaveUsed: number;
   deductibleAbsentDays: number;
   payableDays: number;
+  dailyRate: string;
   salaryAfterAbsence: string;
   bonus: string;
   esi: string;
@@ -42,6 +44,16 @@ interface PayrollRecordRow {
   netSalary: string;
   cashAmount: string;
   chequeAmount: string;
+}
+
+function r2(n: number) {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
+}
+
+function r10(n: number) {
+  const rounded = Math.round(n);
+  const rem = ((rounded % 10) + 10) % 10;
+  return rem < 5 ? rounded - rem : rounded + (10 - rem);
 }
 
 function EditableAmount({
@@ -82,9 +94,8 @@ function EditableAmount({
   return (
     <div className="inline-block">
       <input
-        type="number"
-        min={0}
-        step={step}
+        type="text"
+        inputMode="numeric"
         disabled={disabled}
         className={`input py-1 px-1.5 text-xs ${width} ${align === "right" ? "text-right" : ""} disabled:bg-navy-50 disabled:text-navy-400`}
         value={local}
@@ -112,6 +123,8 @@ function SalarySheetRow({
   onToggle,
   isFinalized,
   onChanged,
+  linkPrefix,
+  recordsQueryKey,
 }: {
   record: PayrollRecordRow;
   index: number;
@@ -121,7 +134,10 @@ function SalarySheetRow({
   onToggle: () => void;
   isFinalized: boolean;
   onChanged: () => void;
+  linkPrefix: string;
+  recordsQueryKey: unknown[];
 }) {
+  const queryClient = useQueryClient();
   const [rowError, setRowError] = useState<string | null>(null);
   const disabled = isFinalized;
 
@@ -136,50 +152,69 @@ function SalarySheetRow({
     return data;
   }
 
-  const mutAbsentDays = useMutation({
-    mutationFn: async (absentDays: number) => {
-      await post("/api/attendance/monthly", { employeeId: record.employee.id, year, month, absentDays });
-      return post(`/api/payroll/records/${record.id}`, {});
-    },
-    onSuccess: () => {
-      setRowError(null);
-      onChanged();
-    },
-    onError: (e: Error) => setRowError(e.message),
-  });
+  function patchRecord(updated: Partial<PayrollRecordRow>) {
+    queryClient.setQueryData(recordsQueryKey, (old: { records: PayrollRecordRow[] } | undefined) => {
+      if (!old) return old;
+      return {
+        ...old,
+        records: old.records.map((r) => (r.id === record.id ? { ...r, ...updated } : r)),
+      };
+    });
+  }
 
   const mutExtras = useMutation({
     mutationFn: (vals: { canteenCharges: number; otDays: number }) =>
       post(`/api/payroll/records/${record.id}/extras`, vals),
-    onSuccess: () => {
-      setRowError(null);
-      onChanged();
+    onMutate: async (vals) => {
+      await queryClient.cancelQueries({ queryKey: recordsQueryKey });
+      const prev = queryClient.getQueryData(recordsQueryKey);
+      const otAmount = r10(vals.otDays * Number(record.dailyRate));
+      const totalEarnings = r10(Number(record.salaryAfterAbsence) + Number(record.bonus) + otAmount);
+      const totalDeductions = r2(Number(record.pf) + Number(record.esi) + Number(record.pt) + Number(record.rtt) + Number(record.advance) + vals.canteenCharges);
+      const netSalary = r10(totalEarnings - totalDeductions);
+      const cheque = r2(Math.min(Math.max(Number(record.chequeAmount), 0), Math.max(netSalary, 0)));
+      patchRecord({ otDays: String(vals.otDays), otAmount: String(otAmount), canteenCharges: String(vals.canteenCharges), totalEarnings: String(totalEarnings), totalDeductions: String(totalDeductions), netSalary: String(netSalary), cashAmount: String(r2(netSalary - cheque)), chequeAmount: String(cheque) });
+      return { prev };
     },
-    onError: (e: Error) => setRowError(e.message),
+    onSuccess: (data) => { setRowError(null); if (data.record) patchRecord(data.record); },
+    onError: (e: Error, _v, ctx) => { setRowError(e.message); if (ctx?.prev) queryClient.setQueryData(recordsQueryKey, ctx.prev); },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: recordsQueryKey }),
   });
 
   const mutAdvance = useMutation({
     mutationFn: (amount: number) => post(`/api/payroll/records/${record.id}/advance`, { amount }),
-    onSuccess: () => {
-      setRowError(null);
-      onChanged();
+    onMutate: async (amount) => {
+      await queryClient.cancelQueries({ queryKey: recordsQueryKey });
+      const prev = queryClient.getQueryData(recordsQueryKey);
+      const totalDeductions = r2(Number(record.pf) + Number(record.esi) + Number(record.pt) + Number(record.rtt) + amount + Number(record.canteenCharges));
+      const netSalary = r10(Number(record.totalEarnings) - totalDeductions);
+      const cheque = r2(Math.min(Math.max(Number(record.chequeAmount), 0), Math.max(netSalary, 0)));
+      patchRecord({ advance: String(amount), totalDeductions: String(totalDeductions), netSalary: String(netSalary), cashAmount: String(r2(netSalary - cheque)), chequeAmount: String(cheque) });
+      return { prev };
     },
-    onError: (e: Error) => setRowError(e.message),
+    onSuccess: (data) => { setRowError(null); if (data.record) patchRecord(data.record); },
+    onError: (e: Error, _v, ctx) => { setRowError(e.message); if (ctx?.prev) queryClient.setQueryData(recordsQueryKey, ctx.prev); },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: recordsQueryKey }),
   });
 
   const mutPayment = useMutation({
     mutationFn: (chequeAmount: number) => post(`/api/payroll/records/${record.id}/payment`, { chequeAmount }),
-    onSuccess: () => {
-      setRowError(null);
-      onChanged();
+    onMutate: async (chequeAmount) => {
+      await queryClient.cancelQueries({ queryKey: recordsQueryKey });
+      const prev = queryClient.getQueryData(recordsQueryKey);
+      const net = Number(record.netSalary);
+      patchRecord({ chequeAmount: String(r2(chequeAmount)), cashAmount: String(r2(net - chequeAmount)) });
+      return { prev };
     },
-    onError: (e: Error) => setRowError(e.message),
+    onSuccess: (data) => { setRowError(null); if (data.record) patchRecord(data.record); },
+    onError: (e: Error, _v, ctx) => { setRowError(e.message); if (ctx?.prev) queryClient.setQueryData(recordsQueryKey, ctx.prev); },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: recordsQueryKey }),
   });
 
   const stickyBg = selected ? "!bg-navy-100" : "!bg-white";
 
   return (
-    <tr className={selected ? "bg-navy-50/60" : undefined}>
+    <tr className={selected ? "bg-navy-100" : undefined}>
       <td className={`sticky left-0 z-[5] w-10 min-w-[40px] max-w-[40px] ${stickyBg}`}>
         <input type="checkbox" checked={selected} onChange={onToggle} aria-label={`Select ${record.employee.name}`} />
       </td>
@@ -214,12 +249,7 @@ function SalarySheetRow({
         <ReadCell value={record.presentDays} />
       </td>
       <td>
-        <EditableAmount
-          value={record.actualAbsentDays}
-          disabled={disabled}
-          width="w-16"
-          onCommit={(n) => mutAbsentDays.mutate(n)}
-        />
+        <ReadCell value={record.actualAbsentDays} />
       </td>
       <td>
         <ReadCell value={record.paidLeave} />
@@ -303,7 +333,7 @@ function SalarySheetRow({
 
       <td>
         <div className="flex justify-end">
-          <Link href={`/salary-sheets/${record.id}`} className="btn-ghost px-2 py-1" title="View">
+          <Link href={`${linkPrefix}/salary-sheets/${record.id}`} className="btn-ghost px-2 py-1" title="View">
             <EyeIcon />
           </Link>
         </div>
@@ -314,6 +344,7 @@ function SalarySheetRow({
 
 export default function SalarySheetsPage() {
   const queryClient = useQueryClient();
+  const company = useCompany();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -345,11 +376,12 @@ export default function SalarySheetsPage() {
   });
 
   const periodId: string | undefined = periodData?.id;
+  const recordsQueryKey = ["payroll-records", periodId, company.code, debouncedSearch];
 
   const { data: recordsData, isLoading: recordsLoading, refetch } = useQuery({
-    queryKey: ["payroll-records", periodId, debouncedSearch],
+    queryKey: recordsQueryKey,
     queryFn: async () => {
-      const params = new URLSearchParams({ periodId: periodId! });
+      const params = new URLSearchParams({ periodId: periodId!, company: company.code });
       if (debouncedSearch) params.set("search", debouncedSearch);
       const res = await fetch(`/api/payroll/records?${params}`);
       return res.json();
@@ -388,7 +420,11 @@ export default function SalarySheetsPage() {
     setGenerating(true);
     setActionError(null);
     try {
-      const res = await fetch(`/api/payroll/periods/${periodId}/generate`, { method: "POST" });
+      const res = await fetch(`/api/payroll/periods/${periodId}/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ company: company.code }),
+      });
       const data = await res.json();
       if (!res.ok) {
         setActionError(data.error || "Unable to generate payroll");
@@ -467,8 +503,8 @@ export default function SalarySheetsPage() {
   );
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
+    <div className="flex flex-col h-full gap-4">
+      <div className="shrink-0 flex items-center justify-between flex-wrap gap-3">
         <PeriodPicker year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m); }} />
         <div className="flex items-center gap-2">
           {periodData && <StatusBadge status={periodData.status} />}
@@ -497,7 +533,7 @@ export default function SalarySheetsPage() {
       </div>
 
       {someSelected && (
-        <div className="flex items-center justify-between rounded-md bg-navy-50 text-navy-700 text-xs px-3 py-2">
+        <div className="shrink-0 flex items-center justify-between rounded-md bg-navy-50 text-navy-700 text-xs px-3 py-2">
           <span>
             {selectedIds.size} of {records.length} employee(s) selected — Print and Export will only include the
             selected employees.
@@ -508,6 +544,7 @@ export default function SalarySheetsPage() {
         </div>
       )}
 
+      <div className="shrink-0">
       <Toolbar search={search} onSearchChange={setSearch} searchPlaceholder="Search by employee name...">
         <ImportPanel
           title="Import Attendance (drives Salary Sheet)"
@@ -533,20 +570,22 @@ export default function SalarySheetsPage() {
           </button>
         )}
       </Toolbar>
+      </div>
 
-      {actionError && <div className="rounded-md bg-danger-50 text-danger-700 text-sm px-3 py-2">{actionError}</div>}
+      {actionError && <div className="shrink-0 rounded-md bg-danger-50 text-danger-700 text-sm px-3 py-2">{actionError}</div>}
 
       {isFinalized && (
-        <div className="rounded-md bg-navy-50 text-navy-600 text-xs px-3 py-2">
+        <div className="shrink-0 rounded-md bg-navy-50 text-navy-600 text-xs px-3 py-2">
           This payroll is finalized, so the sheet below is read-only. Click <strong>Reopen Payroll</strong> to edit
           any figure again.
         </div>
       )}
       {!isFinalized && (
-        <div className="rounded-md bg-navy-50 text-navy-600 text-xs px-3 py-2">
-          Actual Absent, OT Days, Advance, Canteen Charges and Cheque Amount are editable directly in the cell below —
-          click in, type, and tab or click away to save. Basic Salary, HRA and Conveyance are edited from the
-          Employees page. Statutory figures (PF, ESI, PT, RTT) and totals are calculated automatically.
+        <div className="shrink-0 rounded-md bg-navy-50 text-navy-600 text-xs px-3 py-2">
+          OT Days, Advance, Canteen Charges and Cheque Amount are editable directly in the cell below —
+          click in, type, and tab or click away to save. Attendance is managed from the Attendance page. Basic Salary,
+          HRA and Conveyance are edited from the Employees page. Statutory figures (PF, ESI, PT, RTT) and totals are
+          calculated automatically.
         </div>
       )}
 
@@ -563,11 +602,11 @@ export default function SalarySheetsPage() {
           }
         />
       ) : (
-        <div className="card overflow-x-auto">
+        <div className="flex-1 min-h-0 overflow-auto rounded-lg border border-navy-100">
           <table className="table-base !border-separate border-spacing-0">
-            <thead className="sticky top-14 z-[8]">
+            <thead>
               <tr>
-                <th className="sticky left-0 z-[6] w-10 min-w-[40px] max-w-[40px] !bg-navy-50" rowSpan={2}>
+                <th className="sticky top-0 left-0 z-[10] w-10 min-w-[40px] max-w-[40px] !bg-white" rowSpan={2}>
                   <input
                     type="checkbox"
                     checked={allSelected}
@@ -575,63 +614,63 @@ export default function SalarySheetsPage() {
                     aria-label="Select all employees"
                   />
                 </th>
-                <th className="sticky left-10 z-[6] w-14 min-w-[56px] max-w-[56px] !bg-navy-50" rowSpan={2}>
+                <th className="sticky top-0 left-10 z-[10] w-14 min-w-[56px] max-w-[56px] !bg-white" rowSpan={2}>
                   S.No
                 </th>
                 <th
-                  className="sticky left-[96px] z-[6] w-[220px] min-w-[220px] max-w-[220px] !bg-navy-50 border-r border-navy-200"
+                  className="sticky top-0 left-[96px] z-[10] w-[220px] min-w-[220px] max-w-[220px] !bg-white border-r border-navy-200"
                   rowSpan={2}
                 >
                   Employee Name
                 </th>
-                <th colSpan={4} className="text-center border-l border-navy-200 !bg-navy-50">
+                <th colSpan={4} className="sticky top-0 z-[8] text-center border-l border-navy-200 !bg-white">
                   Rate of Pay
                 </th>
-                <th colSpan={7} className="text-center border-l border-navy-200 !bg-navy-50">
+                <th colSpan={7} className="sticky top-0 z-[8] text-center border-l border-navy-200 !bg-white">
                   Attendance
                 </th>
-                <th colSpan={5} className="text-center border-l border-navy-200 !bg-navy-50">
+                <th colSpan={5} className="sticky top-0 z-[8] text-center border-l border-navy-200 !bg-white">
                   Earned Salary
                 </th>
-                <th colSpan={7} className="text-center border-l border-navy-200 !bg-navy-50">
+                <th colSpan={7} className="sticky top-0 z-[8] text-center border-l border-navy-200 !bg-white">
                   Deductions
                 </th>
-                <th rowSpan={2} className="border-l border-navy-200 !bg-navy-50">
+                <th rowSpan={2} className="sticky top-0 z-[8] border-l border-navy-200 !bg-white">
                   Net Salary
                 </th>
-                <th colSpan={2} className="text-center border-l border-navy-200 !bg-navy-50">
+                <th colSpan={2} className="sticky top-0 z-[8] text-center border-l border-navy-200 !bg-white">
                   Payment
                 </th>
-                <th className="text-right !bg-navy-50" rowSpan={2}>
+                <th className="sticky top-0 z-[8] text-right !bg-white" rowSpan={2}>
                   Action
                 </th>
               </tr>
               <tr>
-                <th className="border-l border-navy-200 !bg-navy-50">Basic Salary</th>
-                <th className="!bg-navy-50">HRA</th>
-                <th className="!bg-navy-50">Conveyance</th>
-                <th className="!bg-navy-50">Total</th>
-                <th className="border-l border-navy-200 !bg-navy-50">Working Days</th>
-                <th className="!bg-navy-50">Present Days</th>
-                <th className="!bg-navy-50">Actual Absent</th>
-                <th className="!bg-navy-50">Paid Leave</th>
-                <th className="!bg-navy-50">Paid Leave Used</th>
-                <th className="!bg-navy-50">Deductible Absent</th>
-                <th className="!bg-navy-50">Payable Days</th>
-                <th className="border-l border-navy-200 !bg-navy-50">Salary After Absence</th>
-                <th className="!bg-navy-50">Bonus</th>
-                <th className="!bg-navy-50">OT Days</th>
-                <th className="!bg-navy-50">OT Amount</th>
-                <th className="!bg-navy-50">Total Earnings</th>
-                <th className="border-l border-navy-200 !bg-navy-50">PF</th>
-                <th className="!bg-navy-50">ESI</th>
-                <th className="!bg-navy-50">PT</th>
-                <th className="!bg-navy-50">RTT</th>
-                <th className="!bg-navy-50">Advance</th>
-                <th className="!bg-navy-50">Canteen</th>
-                <th className="!bg-navy-50">Total</th>
-                <th className="border-l border-navy-200 !bg-navy-50">Net Cash</th>
-                <th className="!bg-navy-50">Cheque Amount</th>
+                <th className="sticky top-[33px] z-[8] border-l border-navy-200 !bg-white">Basic Salary</th>
+                <th className="sticky top-[33px] z-[8] !bg-white">HRA</th>
+                <th className="sticky top-[33px] z-[8] !bg-white">Conveyance</th>
+                <th className="sticky top-[33px] z-[8] !bg-white">Total</th>
+                <th className="sticky top-[33px] z-[8] border-l border-navy-200 !bg-white">Working Days</th>
+                <th className="sticky top-[33px] z-[8] !bg-white">Present Days</th>
+                <th className="sticky top-[33px] z-[8] !bg-white">Actual Absent</th>
+                <th className="sticky top-[33px] z-[8] !bg-white">Paid Leave</th>
+                <th className="sticky top-[33px] z-[8] !bg-white">Paid Leave Used</th>
+                <th className="sticky top-[33px] z-[8] !bg-white">Deductible Absent</th>
+                <th className="sticky top-[33px] z-[8] !bg-white">Payable Days</th>
+                <th className="sticky top-[33px] z-[8] border-l border-navy-200 !bg-white">Salary After Absence</th>
+                <th className="sticky top-[33px] z-[8] !bg-white">Bonus</th>
+                <th className="sticky top-[33px] z-[8] !bg-white">OT Days</th>
+                <th className="sticky top-[33px] z-[8] !bg-white">OT Amount</th>
+                <th className="sticky top-[33px] z-[8] !bg-white">Total Earnings</th>
+                <th className="sticky top-[33px] z-[8] border-l border-navy-200 !bg-white">PF</th>
+                <th className="sticky top-[33px] z-[8] !bg-white">ESI</th>
+                <th className="sticky top-[33px] z-[8] !bg-white">PT</th>
+                <th className="sticky top-[33px] z-[8] !bg-white">RTT</th>
+                <th className="sticky top-[33px] z-[8] !bg-white">Advance</th>
+                <th className="sticky top-[33px] z-[8] !bg-white">Canteen</th>
+                <th className="sticky top-[33px] z-[8] !bg-white">Total</th>
+                <th className="sticky top-[33px] z-[8] border-l border-navy-200 !bg-white">Net Cash</th>
+                <th className="sticky top-[33px] z-[8] !bg-white">Cheque Amount</th>
               </tr>
             </thead>
             <tbody>
@@ -646,6 +685,8 @@ export default function SalarySheetsPage() {
                   onToggle={() => toggleSelected(r.employee.id)}
                   isFinalized={isFinalized}
                   onChanged={refreshAll}
+                  linkPrefix={company.prefix}
+                  recordsQueryKey={recordsQueryKey}
                 />
               ))}
             </tbody>

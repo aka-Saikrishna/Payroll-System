@@ -13,19 +13,22 @@ export async function GET(request: NextRequest) {
     const employeeIdsParam = searchParams.get("employeeIds")?.trim();
     const employeeIds = employeeIdsParam ? employeeIdsParam.split(",").filter(Boolean) : null;
 
+    const company = searchParams.get("company")?.trim() || "VPPL";
+
     const where: Prisma.PayrollRecordWhereInput = {
       payrollPeriodId: periodId,
-      ...(employeeIds ? { employeeId: { in: employeeIds } } : {}),
-      ...(search
-        ? {
-            employee: {
+      employee: {
+        company,
+        ...(employeeIds ? { id: { in: employeeIds } } : {}),
+        ...(search
+          ? {
               OR: [
                 { employeeCode: { contains: search, mode: "insensitive" } },
                 { name: { contains: search, mode: "insensitive" } },
               ],
-            },
-          }
-        : {}),
+            }
+          : {}),
+      },
     };
 
     const records = await prisma.payrollRecord.findMany({

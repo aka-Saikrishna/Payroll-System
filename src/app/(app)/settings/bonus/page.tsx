@@ -137,7 +137,7 @@ export default function BonusSettingsPage() {
           </div>
           <div>
             <label className="label">Amount</label>
-            <input type="number" step="0.01" className="input" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} required />
+            <input type="text" inputMode="numeric" className="input" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} required />
           </div>
           <div>
             <label className="label">Effective From</label>

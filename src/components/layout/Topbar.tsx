@@ -2,15 +2,20 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { mainNav, settingsNav } from "./nav-config";
-import { LogoutIcon } from "@/components/icons";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { mainNav, vpflNav, settingsNav } from "./nav-config";
+import { LogoutIcon, RefreshIcon } from "@/components/icons";
 import { MONTH_NAMES } from "@/lib/date-utils";
 
 function pageTitle(pathname: string): string {
-  const all = [...mainNav, ...settingsNav];
+  const all = [...mainNav, ...vpflNav, ...settingsNav];
   const match = all.find((item) => pathname === item.href || pathname.startsWith(item.href + "/"));
-  if (match) return match.label;
+  if (match) {
+    const isVpfl = pathname.startsWith("/vpfl");
+    return isVpfl ? `VPFL — ${match.label}` : match.label;
+  }
+  if (pathname.startsWith("/vpfl/employees/")) return "VPFL — Employee Detail";
+  if (pathname.startsWith("/vpfl/salary-sheets/")) return "VPFL — Salary Sheet Detail";
   if (pathname.startsWith("/employees/")) return "Employee Detail";
   if (pathname.startsWith("/salary-sheets/")) return "Salary Sheet Detail";
   return "VEEKAY Payroll";
@@ -19,7 +24,9 @@ function pageTitle(pathname: string): string {
 export function Topbar({ user }: { user: { name: string; email: string; role: string } }) {
   const pathname = usePathname();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const { data: period } = useQuery({
     queryKey: ["current-period"],
@@ -36,13 +43,18 @@ export function Topbar({ user }: { user: { name: string; email: string; role: st
     router.refresh();
   }
 
+  function handleRefresh() {
+    setRefreshing(true);
+    queryClient.invalidateQueries().then(() => setRefreshing(false));
+  }
+
   return (
     <header className="h-14 border-b border-navy-100 bg-white flex items-center justify-between px-6 sticky top-0 z-10">
       <div>
         <h1 className="text-base font-semibold text-navy-900">{pageTitle(pathname)}</h1>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         {period?.period && (
           <div className="hidden sm:flex items-center text-xs bg-navy-50 text-navy-700 rounded-full px-3 py-1 font-medium">
             {MONTH_NAMES[period.period.month - 1]} {period.period.year}
@@ -50,6 +62,15 @@ export function Topbar({ user }: { user: { name: string; email: string; role: st
             <span className="ml-2 uppercase tracking-wide">{period.period.status}</span>
           </div>
         )}
+
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className="p-1.5 rounded-md text-navy-500 hover:text-navy-800 hover:bg-navy-50 transition-colors disabled:opacity-50"
+          title="Refresh data"
+        >
+          <RefreshIcon className={refreshing ? "animate-spin" : ""} />
+        </button>
 
         <div className="relative">
           <button

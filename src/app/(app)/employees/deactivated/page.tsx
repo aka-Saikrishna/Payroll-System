@@ -11,6 +11,7 @@ import { CurrencyDisplay } from "@/components/ui/CurrencyDisplay";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmployeeIcon, EyeIcon } from "@/components/icons";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
+import { useCompany } from "@/lib/hooks/useCompany";
 
 interface EmployeeRow {
   id: string;
@@ -24,6 +25,7 @@ interface EmployeeRow {
 
 export default function DeactivatedEmployeesPage() {
   const queryClient = useQueryClient();
+  const company = useCompany();
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
   const [page, setPage] = useState(1);
@@ -31,9 +33,9 @@ export default function DeactivatedEmployeesPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["employees-deactivated", debouncedSearch, page],
+    queryKey: ["employees-deactivated", company.code, debouncedSearch, page],
     queryFn: async () => {
-      const params = new URLSearchParams({ page: String(page), pageSize: "20", status: "INACTIVE" });
+      const params = new URLSearchParams({ page: String(page), pageSize: "20", status: "INACTIVE", company: company.code });
       if (debouncedSearch) params.set("search", debouncedSearch);
       const res = await fetch(`/api/employees?${params}`);
       return res.json();
@@ -114,7 +116,7 @@ export default function DeactivatedEmployeesPage() {
                   </td>
                   <td>
                     <div className="flex justify-end gap-1">
-                      <Link href={`/employees/${emp.id}`} className="btn-ghost px-2 py-1" title="View">
+                      <Link href={`${company.prefix}/employees/${emp.id}`} className="btn-ghost px-2 py-1" title="View">
                         <EyeIcon />
                       </Link>
                       <button className="btn-ghost px-2 py-1" title="Activate" onClick={() => setActivateTarget(emp)}>

@@ -16,7 +16,10 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status")?.trim();
     const { page, pageSize, skip, take } = paginationParams(searchParams);
 
+    const company = searchParams.get("company")?.trim() || "VPPL";
+
     const where: Prisma.EmployeeWhereInput = {
+      company,
       ...(department ? { department } : {}),
       ...(status ? { status: status as "ACTIVE" | "INACTIVE" } : {}),
       ...(search
@@ -50,7 +53,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await requireRole(["ADMIN", "PAYROLL_MANAGER"]);
-    const body = employeeSchema.parse(await request.json());
+    const raw = await request.json();
+    const body = employeeSchema.parse(raw);
+    const company = raw.company || "VPPL";
 
     if (body.employeeCode) {
       const existing = await prisma.employee.findUnique({ where: { employeeCode: body.employeeCode } });
@@ -64,11 +69,12 @@ export async function POST(request: NextRequest) {
     // case two employees are created concurrently and collide on the code.
     let employee = null;
     for (let attempt = 0; attempt < 3 && !employee; attempt++) {
-      const employeeCode = body.employeeCode || (await generateNextEmployeeCode());
+      const employeeCode = body.employeeCode || (await generateNextEmployeeCode(company));
       try {
         employee = await prisma.employee.create({
           data: {
             employeeCode,
+            company,
             name: body.name,
             mobile: body.mobile || null,
             email: body.email || null,

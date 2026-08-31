@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { PeriodPicker } from "@/components/ui/PeriodPicker";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { DownloadIcon } from "@/components/icons";
+import { useCompany } from "@/lib/hooks/useCompany";
 import { formatCurrencyINR } from "@/lib/date-utils";
 
 type ReportType = "salary" | "deduction" | "attendance" | "advance" | "bonus";
@@ -18,6 +19,7 @@ const REPORT_TABS: { key: ReportType; label: string }[] = [
 ];
 
 export default function ReportsPage() {
+  const company = useCompany();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -36,9 +38,9 @@ export default function ReportsPage() {
   const periodId = periodData?.id;
 
   const { data, isLoading } = useQuery({
-    queryKey: ["report-records", periodId],
+    queryKey: ["report-records", periodId, company.code],
     queryFn: async () => {
-      const res = await fetch(`/api/payroll/records?periodId=${periodId}`);
+      const res = await fetch(`/api/payroll/records?periodId=${periodId}&company=${company.code}`);
       return res.json();
     },
     enabled: !!periodId,
