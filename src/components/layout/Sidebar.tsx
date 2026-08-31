@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
-import { mainNav, vpflNav, settingsNav } from "./nav-config";
+import { mainNav, vpflNav, deactivatedNav, settingsNav } from "./nav-config";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
 
 export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
@@ -62,6 +62,10 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
               <NavItem key={item.href} {...item} />
             ))}
           </div>
+        </div>
+
+        <div className="pt-4 mt-4 border-t border-navy-800">
+          <NavItem {...deactivatedNav} />
         </div>
 
         <div className="pt-4 mt-4 border-t border-navy-800">

@@ -11,12 +11,12 @@ import { CurrencyDisplay } from "@/components/ui/CurrencyDisplay";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmployeeIcon, EyeIcon } from "@/components/icons";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
-import { useCompany } from "@/lib/hooks/useCompany";
 
 interface EmployeeRow {
   id: string;
   employeeCode: string;
   name: string;
+  company: string;
   department: string | null;
   designation: string | null;
   status: string;
@@ -25,7 +25,6 @@ interface EmployeeRow {
 
 export default function DeactivatedEmployeesPage() {
   const queryClient = useQueryClient();
-  const company = useCompany();
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
   const [page, setPage] = useState(1);
@@ -33,9 +32,9 @@ export default function DeactivatedEmployeesPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["employees-deactivated", company.code, debouncedSearch, page],
+    queryKey: ["employees-deactivated", debouncedSearch, page],
     queryFn: async () => {
-      const params = new URLSearchParams({ page: String(page), pageSize: "20", status: "INACTIVE", company: company.code });
+      const params = new URLSearchParams({ page: String(page), pageSize: "20", status: "INACTIVE", company: "ALL" });
       if (debouncedSearch) params.set("search", debouncedSearch);
       const res = await fetch(`/api/employees?${params}`);
       return res.json();
@@ -94,6 +93,7 @@ export default function DeactivatedEmployeesPage() {
               <tr>
                 <th>S.No</th>
                 <th>Employee Name</th>
+                <th>Company</th>
                 <th>Department</th>
                 <th>Designation</th>
                 <th>Monthly Salary</th>
@@ -102,30 +102,34 @@ export default function DeactivatedEmployeesPage() {
               </tr>
             </thead>
             <tbody>
-              {employees.map((emp, idx) => (
-                <tr key={emp.id}>
-                  <td>{(page - 1) * 20 + idx + 1}</td>
-                  <td>{emp.name}</td>
-                  <td>{emp.department || "—"}</td>
-                  <td>{emp.designation || "—"}</td>
-                  <td>
-                    <CurrencyDisplay value={emp.salaryConfig?.monthlySalary || 0} />
-                  </td>
-                  <td>
-                    <StatusBadge status={emp.status} />
-                  </td>
-                  <td>
-                    <div className="flex justify-end gap-1">
-                      <Link href={`${company.prefix}/employees/${emp.id}`} className="btn-ghost px-2 py-1" title="View">
-                        <EyeIcon />
-                      </Link>
-                      <button className="btn-ghost px-2 py-1" title="Activate" onClick={() => setActivateTarget(emp)}>
-                        <EmployeeIcon />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {employees.map((emp, idx) => {
+                const prefix = emp.company === "VPFL" ? "/vpfl" : "";
+                return (
+                  <tr key={emp.id}>
+                    <td>{(page - 1) * 20 + idx + 1}</td>
+                    <td>{emp.name}</td>
+                    <td>{emp.company}</td>
+                    <td>{emp.department || "—"}</td>
+                    <td>{emp.designation || "—"}</td>
+                    <td>
+                      <CurrencyDisplay value={emp.salaryConfig?.monthlySalary || 0} />
+                    </td>
+                    <td>
+                      <StatusBadge status={emp.status} />
+                    </td>
+                    <td>
+                      <div className="flex justify-end gap-1">
+                        <Link href={`${prefix}/employees/${emp.id}`} className="btn-ghost px-2 py-1" title="View">
+                          <EyeIcon />
+                        </Link>
+                        <button className="btn-ghost px-2 py-1" title="Activate" onClick={() => setActivateTarget(emp)}>
+                          <EmployeeIcon />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           <div className="px-3">

@@ -28,11 +28,12 @@ export const mainNav: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: DashboardIcon },
   { href: "/salary-sheets", label: "Salary Sheets", icon: SheetIcon },
   { href: "/employees", label: "Employees", icon: EmployeeIcon },
-  { href: "/employees/deactivated", label: "Deactivated", icon: EmployeeOffIcon },
   { href: "/attendance", label: "Attendance", icon: AttendanceIcon },
   { href: "/advances", label: "Advances", icon: AdvanceIcon },
   { href: "/reports", label: "Reports", icon: ReportIcon },
 ];
+
+export const deactivatedNav: NavItem = { href: "/employees/deactivated", label: "Deactivated", icon: EmployeeOffIcon };
 
 export const vpflNav: NavItem[] = [
   { href: "/vpfl/employees", label: "Employees", icon: EmployeeIcon },

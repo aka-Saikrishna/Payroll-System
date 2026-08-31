@@ -3,12 +3,12 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { mainNav, vpflNav, settingsNav } from "./nav-config";
+import { mainNav, vpflNav, deactivatedNav, settingsNav } from "./nav-config";
 import { LogoutIcon, RefreshIcon } from "@/components/icons";
 import { MONTH_NAMES } from "@/lib/date-utils";
 
 function pageTitle(pathname: string): string {
-  const all = [...mainNav, ...vpflNav, ...settingsNav];
+  const all = [...mainNav, ...vpflNav, deactivatedNav, ...settingsNav];
   const match = all.find((item) => pathname === item.href || pathname.startsWith(item.href + "/"));
   if (match) {
     const isVpfl = pathname.startsWith("/vpfl");

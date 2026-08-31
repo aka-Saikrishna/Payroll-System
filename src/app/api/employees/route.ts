@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     const company = searchParams.get("company")?.trim() || "VPPL";
 
     const where: Prisma.EmployeeWhereInput = {
-      company,
+      ...(company !== "ALL" ? { company } : {}),
       ...(department ? { department } : {}),
       ...(status ? { status: status as "ACTIVE" | "INACTIVE" } : {}),
       ...(search
