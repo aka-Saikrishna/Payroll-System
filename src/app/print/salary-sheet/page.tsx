@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { MONTH_NAMES, formatCurrencyINR } from "@/lib/date-utils";
+import { getCompanyByCode } from "@/lib/hooks/useCompany";
 
 export default function PrintSalarySheetPage() {
   return (
@@ -17,7 +18,7 @@ interface PayrollRecordRow {
   id: string;
   status: string;
   updatedAt: string;
-  employee: { id: string; employeeCode: string; name: string; department?: string | null };
+  employee: { id: string; employeeCode: string; name: string; department?: string | null; company?: string };
   basicSalary: string;
   hra: string;
   conveyance: string;
@@ -63,11 +64,14 @@ function PayslipCard({ record, monthLabel }: { record: PayrollRecordRow; monthLa
   const hasChequePayment = Number(record.chequeAmount) > 0;
 
   return (
-    <div className="payslip-col flex flex-col justify-between p-3 bg-white border border-slate-400 rounded-sm text-slate-800 text-[9px]">
+    <div className="payslip-col flex flex-col justify-between p-3.5 bg-white border border-slate-400 rounded-sm text-slate-800 text-[9px]">
       {/* Header */}
       <div>
         <div className="text-center pb-2 border-b border-slate-200">
-          <div className="text-[9px] text-slate-500 font-medium">{monthLabel}</div>
+          <div className="text-[9px] font-bold text-slate-700 uppercase tracking-wide leading-tight">
+            {getCompanyByCode(record.employee.company || "VPPL").name}
+          </div>
+          <div className="text-[8px] text-slate-500 font-medium mt-0.5">{monthLabel}</div>
           <div className="text-[11px] font-bold text-slate-900 uppercase tracking-wide mt-0.5 leading-tight">
             {record.employee.name}
           </div>
@@ -219,6 +223,7 @@ function PrintSalarySheetContent() {
   const searchParams = useSearchParams();
   const periodId = searchParams.get("periodId");
   const employeeIds = searchParams.get("employeeIds");
+  const company = searchParams.get("company") || "VPPL";
 
   const { data: periodData, isLoading: periodLoading } = useQuery({
     queryKey: ["print-period", periodId],
@@ -230,9 +235,9 @@ function PrintSalarySheetContent() {
   });
 
   const { data: recordsData, isLoading } = useQuery({
-    queryKey: ["print-records", periodId, employeeIds],
+    queryKey: ["print-records", periodId, company, employeeIds],
     queryFn: async () => {
-      const params = new URLSearchParams({ periodId: periodId! });
+      const params = new URLSearchParams({ periodId: periodId!, company });
       if (employeeIds) params.set("employeeIds", employeeIds);
       const res = await fetch(`/api/payroll/records?${params}`);
       return res.json();
@@ -341,7 +346,7 @@ function PrintSalarySheetContent() {
       <style>{`
         @page {
           size: A4 landscape;
-          margin: 10mm 12mm;
+          margin: 12mm 15mm;
         }
 
         @media screen {
@@ -358,6 +363,8 @@ function PrintSalarySheetContent() {
             background: white !important;
             margin: 0 !important;
             padding: 0 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           .no-print {
             display: none !important;
@@ -366,7 +373,6 @@ function PrintSalarySheetContent() {
             padding: 0 !important;
             margin: 0 !important;
             max-width: 100% !important;
-            space-y: 0 !important;
           }
           .payslip-sheet-wrapper {
             margin: 0 !important;
@@ -380,28 +386,40 @@ function PrintSalarySheetContent() {
           }
           .payslip-sheet {
             width: 100% !important;
-            height: 172mm !important;
-            min-height: 172mm !important;
-            max-height: 172mm !important;
+            height: 174mm !important;
+            min-height: 174mm !important;
+            max-height: 174mm !important;
             margin: 0 !important;
             padding: 0 !important;
             box-shadow: none !important;
             border: none !important;
             display: grid !important;
             grid-template-columns: repeat(4, 1fr) !important;
-            /* Each payslip is its own bordered card, separated by a gap */
-            gap: 4mm !important;
+            gap: 3mm !important;
             box-sizing: border-box !important;
           }
           .payslip-col {
-            border: 1px solid #64748b !important;
-            border-radius: 2px !important;
-            padding: 12px 10px !important;
+            border: 0.5px solid #94a3b8 !important;
+            border-radius: 1px !important;
+            padding: 12px 12px !important;
             height: 100% !important;
             box-sizing: border-box !important;
+            font-size: 7.5px !important;
+            line-height: 1.5 !important;
           }
+          .payslip-col h4 {
+            font-size: 6.5px !important;
+          }
+          .payslip-col .text-\\[9px\\] { font-size: 7.5px !important; }
+          .payslip-col .text-\\[11px\\] { font-size: 9px !important; }
+          .payslip-col .text-\\[8px\\] { font-size: 6.5px !important; }
           .payslip-col-empty {
             border: none !important;
+          }
+          .payslip-footer {
+            font-size: 6px !important;
+            margin-top: 1mm !important;
+            padding-top: 1mm !important;
           }
         }
       `}</style>

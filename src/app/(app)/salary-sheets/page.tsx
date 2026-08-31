@@ -488,6 +488,7 @@ export default function SalarySheetsPage() {
   const allSelected = allEmployeeIds.length > 0 && allEmployeeIds.every((id) => selectedIds.has(id));
   const someSelected = selectedIds.size > 0;
   const employeeIdsQuery = someSelected ? `&employeeIds=${Array.from(selectedIds).join(",")}` : "";
+  const companyQuery = `&company=${company.code}`;
 
   const totals = records.reduce(
     (acc, r) => ({
@@ -513,7 +514,7 @@ export default function SalarySheetsPage() {
           </button>
           {periodId && (
             <a
-              href={`/api/export/payroll/excel?periodId=${periodId}${employeeIdsQuery}`}
+              href={`/api/export/payroll/excel?periodId=${periodId}${companyQuery}${employeeIdsQuery}`}
               className="btn-secondary"
               download
             >
@@ -522,7 +523,7 @@ export default function SalarySheetsPage() {
           )}
           {periodId && (
             <Link
-              href={`/print/salary-sheet?periodId=${periodId}${employeeIdsQuery}`}
+              href={`/print/salary-sheet?periodId=${periodId}${companyQuery}${employeeIdsQuery}`}
               className="btn-secondary"
               target="_blank"
             >
