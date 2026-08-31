@@ -301,7 +301,7 @@ function SalarySheetRow({
         <ReadCell value={formatCurrencyINR(record.rtt)} />
       </td>
       <td>
-        <EditableAmount value={Number(record.advance)} disabled={disabled} onCommit={(n) => mutAdvance.mutate(n)} />
+        <ReadCell value={formatCurrencyINR(record.advance)} />
       </td>
       <td>
         <EditableAmount
