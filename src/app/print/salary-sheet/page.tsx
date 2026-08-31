@@ -64,22 +64,22 @@ function PayslipCard({ record, monthLabel }: { record: PayrollRecordRow; monthLa
   const hasChequePayment = Number(record.chequeAmount) > 0;
 
   return (
-    <div className="payslip-col flex flex-col justify-between p-3.5 bg-white border border-slate-400 rounded-sm text-slate-800 text-[9px]">
+    <div className="payslip-col flex flex-col justify-between p-3.5 bg-white border border-slate-400 rounded-sm text-slate-800 text-[11px]">
       {/* Header */}
       <div>
         <div className="text-center pb-2 border-b border-slate-200">
-          <div className="text-[9px] font-bold text-slate-700 uppercase tracking-wide leading-tight">
+          <div className="text-[11px] font-bold text-slate-700 uppercase tracking-wide leading-tight">
             {getCompanyByCode(record.employee.company || "VPPL").name}
           </div>
-          <div className="text-[8px] text-slate-500 font-medium mt-0.5">{monthLabel}</div>
-          <div className="text-[11px] font-bold text-slate-900 uppercase tracking-wide mt-0.5 leading-tight">
+          <div className="text-[10px] text-slate-500 font-medium mt-0.5">{monthLabel}</div>
+          <div className="text-[13px] font-bold text-slate-900 uppercase tracking-wide mt-0.5 leading-tight">
             {record.employee.name}
           </div>
         </div>
 
         {/* Attendance Summary */}
         <div className="py-2 border-b border-slate-200">
-          <h4 className="text-[8px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+          <h4 className="text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
             ATTENDANCE SUMMARY
           </h4>
           <div className="space-y-0.5">
@@ -116,7 +116,7 @@ function PayslipCard({ record, monthLabel }: { record: PayrollRecordRow; monthLa
 
         {/* Salary */}
         <div className="py-2 border-b border-slate-200">
-          <h4 className="text-[8px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+          <h4 className="text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
             SALARY
           </h4>
           <div className="space-y-0.5">
@@ -151,7 +151,7 @@ function PayslipCard({ record, monthLabel }: { record: PayrollRecordRow; monthLa
 
         {/* Deductions */}
         <div className="py-2">
-          <h4 className="text-[8px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+          <h4 className="text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
             DEDUCTIONS
           </h4>
           <div className="space-y-0.5">
@@ -192,8 +192,8 @@ function PayslipCard({ record, monthLabel }: { record: PayrollRecordRow; monthLa
       {/* Net Salary at Bottom */}
       <div className="mt-auto">
         <div className="border-t-2 border-slate-900 pt-2 flex justify-between items-center">
-          <span className="font-bold text-[9px] uppercase tracking-wide text-slate-900">NET SALARY</span>
-          <span className="font-extrabold text-[11px] text-slate-900">{formatCurrencyINR(record.netSalary)}</span>
+          <span className="font-bold text-[11px] uppercase tracking-wide text-slate-900">NET SALARY</span>
+          <span className="font-extrabold text-[13px] text-slate-900">{formatCurrencyINR(record.netSalary)}</span>
         </div>
 
         {hasChequePayment && (
@@ -279,7 +279,7 @@ function PrintSalarySheetContent() {
   const headerMonthLabel = `${MONTH_NAMES[period.month - 1].toUpperCase()} ${period.year}`;
 
   // 4 employees per landscape sheet
-  const pages = chunkArray(records, 4);
+  const pages = chunkArray(records, 3);
 
   return (
     <div className="min-h-screen bg-slate-100 pb-12">
@@ -307,16 +307,16 @@ function PrintSalarySheetContent() {
         <div className="payslip-container py-6 px-4 space-y-8 max-w-[1240px] mx-auto">
           {pages.map((pageRecords, pageIndex) => {
             // Fill empty slots up to 4 so columns stay exactly 25% width
-            const emptySlots = 4 - pageRecords.length;
+            const emptySlots = 3 - pageRecords.length;
 
             return (
               <div key={pageIndex} className="payslip-sheet-wrapper">
                 <div className="no-print flex justify-between items-center text-xs text-slate-500 mb-1.5 px-1 font-medium">
                   <span>Sheet {pageIndex + 1} of {pages.length}</span>
-                  <span>4 members per landscape page</span>
+                  <span>3 members per landscape page</span>
                 </div>
 
-                <div className="payslip-sheet bg-white rounded-sm shadow-md grid grid-cols-4 gap-2.5 p-2.5 min-h-[580px]">
+                <div className="payslip-sheet bg-white rounded-sm shadow-md grid grid-cols-3 gap-3 p-2.5 min-h-[580px]">
                   {pageRecords.map((record) => (
                     <PayslipCard key={record.id} record={record} monthLabel={monthLabel} />
                   ))}
@@ -394,7 +394,7 @@ function PrintSalarySheetContent() {
             box-shadow: none !important;
             border: none !important;
             display: grid !important;
-            grid-template-columns: repeat(4, 1fr) !important;
+            grid-template-columns: repeat(3, 1fr) !important;
             gap: 3mm !important;
             box-sizing: border-box !important;
           }
@@ -404,15 +404,15 @@ function PrintSalarySheetContent() {
             padding: 12px 12px !important;
             height: 100% !important;
             box-sizing: border-box !important;
-            font-size: 7.5px !important;
+            font-size: 8.5px !important;
             line-height: 1.5 !important;
           }
           .payslip-col h4 {
-            font-size: 6.5px !important;
+            font-size: 8px !important;
           }
-          .payslip-col .text-\\[9px\\] { font-size: 7.5px !important; }
+          .payslip-col .text-\\[10px\\] { font-size: 8px !important; }
           .payslip-col .text-\\[11px\\] { font-size: 9px !important; }
-          .payslip-col .text-\\[8px\\] { font-size: 6.5px !important; }
+          .payslip-col .text-\\[13px\\] { font-size: 10px !important; }
           .payslip-col-empty {
             border: none !important;
           }
