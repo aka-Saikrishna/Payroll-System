@@ -134,7 +134,6 @@ model EmployeeSalaryConfig {
   pfApplicable   Boolean  @default(false)
   esiApplicable  Boolean  @default(false)
   ptApplicable   Boolean  @default(true)
-  rttApplicable  Boolean  @default(false)
   // Whether this employee gets the 1-day-per-month absence forgiveness.
   // Off by default: the factory's register deducts for every absent day,
   // so this is opt-in per employee rather than a company-wide rule.
@@ -281,18 +280,6 @@ model PtRule {
   @@map("pt_rules")
 }
 
-model RttRule {
-  id            String    @id @default(cuid())
-  amount        Decimal   @db.Decimal(12, 2)
-  enabled       Boolean   @default(true)
-  effectiveFrom DateTime  @db.Date
-  effectiveTo   DateTime? @db.Date
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  @@map("rtt_rules")
-}
-
 // ============================================================
 // PAYROLL RESULT (source of truth for calculated payroll)
 // ============================================================
@@ -334,7 +321,6 @@ model PayrollRecord {
   esi                   Decimal @db.Decimal(12, 2)
   pf                    Decimal @db.Decimal(12, 2)
   pt                    Decimal @db.Decimal(12, 2)
-  rtt                   Decimal @db.Decimal(12, 2)
   advance               Decimal @db.Decimal(12, 2)
   // Manually entered per-employee-per-month deduction (Register of Wages format)
   canteenCharges        Decimal @db.Decimal(12, 2) @default(0)
@@ -351,7 +337,6 @@ model PayrollRecord {
   appliedPfRateId       String?
   appliedEsiRuleId      String?
   appliedPtRuleId       String?
-  appliedRttRuleId      String?
   appliedBonusRuleId    String?
 
   status                PayrollStatus @default(DRAFT)

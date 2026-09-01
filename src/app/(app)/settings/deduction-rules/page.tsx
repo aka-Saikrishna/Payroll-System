@@ -8,13 +8,12 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PlusIcon, EditIcon } from "@/components/icons";
 import { formatDate, formatCurrencyINR } from "@/lib/date-utils";
 
-type TabKey = "pf" | "esi" | "pt" | "rtt";
+type TabKey = "pf" | "esi" | "pt";
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "pf", label: "PF" },
   { key: "esi", label: "ESI" },
   { key: "pt", label: "PT" },
-  { key: "rtt", label: "RTT" },
 ];
 
 interface RateRule {
@@ -54,7 +53,6 @@ export default function DeductionRulesPage() {
     setEditing(null);
     setFormError(null);
     if (tab === "pt") setForm({ minSalary: "", maxSalary: "", ptAmount: "", enabled: true, effectiveFrom: "" });
-    else if (tab === "rtt") setForm({ amount: "", enabled: true, effectiveFrom: "" });
     else setForm({ ratePercent: "", wageCeiling: "", enabled: true, effectiveFrom: "" });
     setDrawerOpen(true);
   }
@@ -70,8 +68,6 @@ export default function DeductionRulesPage() {
         enabled: rule.enabled,
         effectiveFrom: rule.effectiveFrom.slice(0, 10),
       });
-    } else if (tab === "rtt") {
-      setForm({ amount: rule.amount || "", enabled: rule.enabled, effectiveFrom: rule.effectiveFrom.slice(0, 10) });
     } else {
       setForm({
         ratePercent: rule.ratePercent || "",
@@ -147,8 +143,6 @@ export default function DeductionRulesPage() {
                     <th>Max Salary</th>
                     <th>PT Amount</th>
                   </>
-                ) : tab === "rtt" ? (
-                  <th>Amount</th>
                 ) : (
                   <>
                     <th>Rate %</th>
@@ -169,8 +163,6 @@ export default function DeductionRulesPage() {
                       <td>{r.maxSalary ? formatCurrencyINR(r.maxSalary) : "No limit"}</td>
                       <td>{formatCurrencyINR(r.ptAmount || 0)}</td>
                     </>
-                  ) : tab === "rtt" ? (
-                    <td>{formatCurrencyINR(r.amount || 0)}</td>
                   ) : (
                     <>
                       <td>{r.ratePercent}%</td>
@@ -214,11 +206,6 @@ export default function DeductionRulesPage() {
                 <input type="text" inputMode="numeric" className="input" value={String(form.ptAmount ?? "")} onChange={(e) => setForm((f) => ({ ...f, ptAmount: e.target.value }))} required />
               </div>
             </>
-          ) : tab === "rtt" ? (
-            <div>
-              <label className="label">Amount</label>
-              <input type="text" inputMode="numeric" className="input" value={String(form.amount ?? "")} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} required />
-            </div>
           ) : (
             <>
               <div>

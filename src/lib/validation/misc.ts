@@ -59,12 +59,6 @@ export const ptRuleSchema = z.object({
   effectiveFrom: z.string().min(1),
 });
 
-export const rttRuleSchema = z.object({
-  amount: z.coerce.number().min(0),
-  enabled: z.coerce.boolean().default(true),
-  effectiveFrom: z.string().min(1),
-});
-
 export const userSchema = z.object({
   name: z.string().trim().min(1),
   email: z.string().trim().email(),

@@ -92,7 +92,6 @@ export async function POST(request: NextRequest) {
                 pfApplicable: body.pfApplicable,
                 esiApplicable: body.esiApplicable,
                 ptApplicable: body.ptApplicable,
-                rttApplicable: body.rttApplicable,
                 paidLeaveApplicable: body.paidLeaveApplicable,
               },
             },

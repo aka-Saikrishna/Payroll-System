@@ -15,7 +15,6 @@ export interface ValidatedEmployeeRow {
   pfApplicable: boolean;
   esiApplicable: boolean;
   ptApplicable: boolean;
-  rttApplicable: boolean;
   paidLeaveApplicable: boolean;
   isUpdate: boolean;
 }
@@ -101,7 +100,6 @@ export function validateEmployeeRows(rows: ParsedRow[], existingCodes: Set<strin
       pfApplicable: parseBoolean(v["PF Applicable"] || ""),
       esiApplicable: parseBoolean(v["ESI Applicable"] || ""),
       ptApplicable: v["PT Applicable"] != null ? parseBoolean(v["PT Applicable"]) : true,
-      rttApplicable: parseBoolean(v["RTT Applicable"] || ""),
       paidLeaveApplicable: parseBoolean(v["Paid Leave Applicable"] || ""),
       isUpdate,
     });

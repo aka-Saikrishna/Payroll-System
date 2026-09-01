@@ -61,7 +61,6 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
               pfApplicable: body.pfApplicable,
               esiApplicable: body.esiApplicable,
               ptApplicable: body.ptApplicable,
-              rttApplicable: body.rttApplicable,
               paidLeaveApplicable: body.paidLeaveApplicable,
             },
             update: {
@@ -72,7 +71,6 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
               pfApplicable: body.pfApplicable,
               esiApplicable: body.esiApplicable,
               ptApplicable: body.ptApplicable,
-              rttApplicable: body.rttApplicable,
               paidLeaveApplicable: body.paidLeaveApplicable,
             },
           },

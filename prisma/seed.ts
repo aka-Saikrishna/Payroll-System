@@ -80,11 +80,6 @@ async function main() {
     update: {},
     create: { id: "seed-pt-rule-3", minSalary: 20001, maxSalary: null, ptAmount: 200, enabled: true, effectiveFrom },
   });
-  await prisma.rttRule.upsert({
-    where: { id: "seed-rtt-rule" },
-    update: {},
-    create: { id: "seed-rtt-rule", amount: 0, enabled: true, effectiveFrom },
-  });
   await prisma.bonusRule.upsert({
     where: { id: "seed-bonus-rule" },
     update: { enabled: true },
@@ -128,7 +123,6 @@ async function main() {
             pfApplicable: i % 2 === 0,
             esiApplicable: i % 3 === 0,
             ptApplicable: true,
-            rttApplicable: false,
             paidLeaveApplicable: i % 2 === 0,
           },
         },

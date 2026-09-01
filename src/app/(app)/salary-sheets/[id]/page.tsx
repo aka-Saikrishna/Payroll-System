@@ -55,7 +55,7 @@ export default function SalarySheetDetailPage() {
   if (!r) return <div className="text-sm text-navy-400">Payroll record not found.</div>;
 
   const totalDeductions =
-    Number(r.esi) + Number(r.pf) + Number(r.pt) + Number(r.rtt) + Number(r.advance) + Number(r.canteenCharges);
+    Number(r.esi) + Number(r.pf) + Number(r.pt) + Number(r.advance) + Number(r.canteenCharges);
   const netSalary = Number(r.netSalary);
   const chequeAmount = isSplit ? Number(chequeInput) || 0 : 0;
   const netCash = Math.max(Math.round((netSalary - chequeAmount + Number.EPSILON) * 100) / 100, 0);
@@ -168,7 +168,6 @@ export default function SalarySheetDetailPage() {
               <Row label="PT" value={<CurrencyDisplay value={r.pt} />} />
             </div>
             <div>
-              <Row label="RTT" value={<CurrencyDisplay value={r.rtt} />} />
               <Row label="Advance" value={<CurrencyDisplay value={r.advance} />} />
               <Row label="Canteen Charges" value={<CurrencyDisplay value={r.canteenCharges} />} />
             </div>

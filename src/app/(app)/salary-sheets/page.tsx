@@ -34,7 +34,6 @@ interface PayrollRecordRow {
   esi: string;
   pf: string;
   pt: string;
-  rtt: string;
   advance: string;
   canteenCharges: string;
   otDays: string;
@@ -170,7 +169,7 @@ function SalarySheetRow({
       const prev = queryClient.getQueryData(recordsQueryKey);
       const otAmount = r10(vals.otDays * Number(record.dailyRate));
       const totalEarnings = r10(Number(record.salaryAfterAbsence) + Number(record.bonus) + otAmount);
-      const totalDeductions = r2(Number(record.pf) + Number(record.esi) + Number(record.pt) + Number(record.rtt) + Number(record.advance) + vals.canteenCharges);
+      const totalDeductions = r2(Number(record.pf) + Number(record.esi) + Number(record.pt) + Number(record.advance) + vals.canteenCharges);
       const netSalary = r10(totalEarnings - totalDeductions);
       const cheque = r2(Math.min(Math.max(Number(record.chequeAmount), 0), Math.max(netSalary, 0)));
       patchRecord({ otDays: String(vals.otDays), otAmount: String(otAmount), canteenCharges: String(vals.canteenCharges), totalEarnings: String(totalEarnings), totalDeductions: String(totalDeductions), netSalary: String(netSalary), cashAmount: String(r2(netSalary - cheque)), chequeAmount: String(cheque) });
@@ -186,7 +185,7 @@ function SalarySheetRow({
     onMutate: async (amount) => {
       await queryClient.cancelQueries({ queryKey: recordsQueryKey });
       const prev = queryClient.getQueryData(recordsQueryKey);
-      const totalDeductions = r2(Number(record.pf) + Number(record.esi) + Number(record.pt) + Number(record.rtt) + amount + Number(record.canteenCharges));
+      const totalDeductions = r2(Number(record.pf) + Number(record.esi) + Number(record.pt) + amount + Number(record.canteenCharges));
       const netSalary = r10(Number(record.totalEarnings) - totalDeductions);
       const cheque = r2(Math.min(Math.max(Number(record.chequeAmount), 0), Math.max(netSalary, 0)));
       patchRecord({ advance: String(amount), totalDeductions: String(totalDeductions), netSalary: String(netSalary), cashAmount: String(r2(netSalary - cheque)), chequeAmount: String(cheque) });
@@ -296,9 +295,6 @@ function SalarySheetRow({
       </td>
       <td>
         <ReadCell value={formatCurrencyINR(record.pt)} />
-      </td>
-      <td>
-        <ReadCell value={formatCurrencyINR(record.rtt)} />
       </td>
       <td>
         <ReadCell value={formatCurrencyINR(record.advance)} />
@@ -585,7 +581,7 @@ export default function SalarySheetsPage() {
         <div className="shrink-0 rounded-md bg-navy-50 text-navy-600 text-xs px-3 py-2">
           OT Days, Advance, Canteen Charges and Cheque Amount are editable directly in the cell below —
           click in, type, and tab or click away to save. Attendance is managed from the Attendance page. Basic Salary,
-          HRA and Conveyance are edited from the Employees page. Statutory figures (PF, ESI, PT, RTT) and totals are
+          HRA and Conveyance are edited from the Employees page. Statutory figures (PF, ESI, PT) and totals are
           calculated automatically.
         </div>
       )}
@@ -666,7 +662,6 @@ export default function SalarySheetsPage() {
                 <th className="sticky top-[33px] z-[8] border-l border-navy-200 !bg-white">PF</th>
                 <th className="sticky top-[33px] z-[8] !bg-white">ESI</th>
                 <th className="sticky top-[33px] z-[8] !bg-white">PT</th>
-                <th className="sticky top-[33px] z-[8] !bg-white">RTT</th>
                 <th className="sticky top-[33px] z-[8] !bg-white">Advance</th>
                 <th className="sticky top-[33px] z-[8] !bg-white">Canteen</th>
                 <th className="sticky top-[33px] z-[8] !bg-white">Total</th>

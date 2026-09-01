@@ -60,7 +60,6 @@ export default function ReportsPage() {
     esi: string;
     pf: string;
     pt: string;
-    rtt: string;
     advance: string;
     netSalary: string;
   }
@@ -124,7 +123,6 @@ export default function ReportsPage() {
                     <th>ESI</th>
                     <th>PF</th>
                     <th>PT</th>
-                    <th>RTT</th>
                   </>
                 )}
                 {reportType === "attendance" && (
@@ -163,7 +161,6 @@ export default function ReportsPage() {
                       <td>{formatCurrencyINR(r.esi)}</td>
                       <td>{formatCurrencyINR(r.pf)}</td>
                       <td>{formatCurrencyINR(r.pt)}</td>
-                      <td>{formatCurrencyINR(r.rtt)}</td>
                     </>
                   )}
                   {reportType === "attendance" && (

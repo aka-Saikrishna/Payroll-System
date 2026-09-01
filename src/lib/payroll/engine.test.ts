@@ -9,7 +9,6 @@ import {
   computeOvertimeAmount,
   computePf,
   computePt,
-  computeRtt,
   computeSalaryAfterAbsence,
   PayrollValidationError,
   roundToNearest10,
@@ -191,12 +190,10 @@ describe("PT slab resolution", () => {
       pfApplicable: false,
       esiApplicable: false,
       ptApplicable: true,
-      rttApplicable: false,
       bonusRule: null,
       pfRule: null,
       esiRule: null,
       ptSlabs: slabs,
-      rttRule: null,
     });
     expect(Math.round(r.salaryAfterAbsence)).toBe(10161);
     expect(r.pt).toBe(200);
@@ -216,12 +213,10 @@ describe("PT slab resolution", () => {
       pfApplicable: false,
       esiApplicable: false,
       ptApplicable: true,
-      rttApplicable: false,
       bonusRule: null,
       pfRule: null,
       esiRule: null,
       ptSlabs: slabs,
-      rttRule: null,
     });
     expect(Math.round(r.salaryAfterAbsence)).toBe(13548);
     expect(r.pt).toBe(200);
@@ -247,12 +242,10 @@ describe("PF and ESI wage bases — PF prorated on Basic Salary, ESI on Salary A
       pfApplicable: true,
       esiApplicable: false,
       ptApplicable: false,
-      rttApplicable: false,
       bonusRule: null,
       pfRule,
       esiRule: null,
       ptSlabs: [],
-      rttRule: null,
     });
     expect(r.salaryAfterAbsence).toBeLessThan(15000); // earnings did drop
     expect(r.pf).toBe(871); // 15000 / 31 * 15 * 12% = 870.97 -> 871
@@ -272,12 +265,10 @@ describe("PF and ESI wage bases — PF prorated on Basic Salary, ESI on Salary A
       pfApplicable: false,
       esiApplicable: true,
       ptApplicable: false,
-      rttApplicable: false,
       bonusRule,
       pfRule: null,
       esiRule,
       ptSlabs: [],
-      rttRule: null,
     });
     // Total Earnings (20000 + bonus + OT) exceeds the 21000 ESI ceiling, but ESI still
     // looks only at Salary After Absence (20000, under the ceiling) — proving bonus/OT
@@ -331,16 +322,6 @@ describe("OT / Late Hours — verified against a real Register of Wages sheet (v
   });
 });
 
-describe("RTT calculation", () => {
-  it("applies flat configured amount when applicable and enabled", () => {
-    expect(computeRtt({ enabled: true, amount: 100 }, true)).toBe(100);
-  });
-
-  it("0 when not applicable", () => {
-    expect(computeRtt({ enabled: true, amount: 100 }, false)).toBe(0);
-  });
-});
-
 describe("calculateEmployeePayroll — end to end (spec sample payroll flow, section 70)", () => {
   const pfRule = { enabled: true, ratePercent: 12, wageCeiling: null };
   const esiRule = { enabled: true, ratePercent: 0.75, wageCeiling: 21000 };
@@ -349,7 +330,6 @@ describe("calculateEmployeePayroll — end to end (spec sample payroll flow, sec
     { minSalary: 15001, maxSalary: 20000, ptAmount: 150 },
     { minSalary: 20001, maxSalary: null, ptAmount: 200 },
   ];
-  const rttRule = { enabled: true, amount: 0 };
   const bonusRule = { enabled: true, amount: 200 };
 
   it("Prakash: full attendance, gets bonus, PF+PT applicable", () => {
@@ -366,12 +346,10 @@ describe("calculateEmployeePayroll — end to end (spec sample payroll flow, sec
       pfApplicable: true,
       esiApplicable: false,
       ptApplicable: true,
-      rttApplicable: false,
       bonusRule,
       pfRule,
       esiRule,
       ptSlabs,
-      rttRule,
     });
     expect(r.salaryAfterAbsence).toBe(20000);
     expect(r.bonusEligible).toBe(true);
@@ -396,12 +374,10 @@ describe("calculateEmployeePayroll — end to end (spec sample payroll flow, sec
       pfApplicable: false,
       esiApplicable: false,
       ptApplicable: true,
-      rttApplicable: false,
       bonusRule,
       pfRule,
       esiRule,
       ptSlabs,
-      rttRule,
     });
     expect(r.deductibleAbsentDays).toBe(0);
     expect(r.salaryAfterAbsence).toBe(18000);
@@ -423,12 +399,10 @@ describe("calculateEmployeePayroll — end to end (spec sample payroll flow, sec
       pfApplicable: false,
       esiApplicable: false,
       ptApplicable: false,
-      rttApplicable: false,
       bonusRule,
       pfRule,
       esiRule,
       ptSlabs,
-      rttRule,
     });
     expect(r.deductibleAbsentDays).toBe(2);
     expect(r.absenceDeduction).toBe(1600); // 20000/25 * 2
@@ -449,12 +423,10 @@ describe("calculateEmployeePayroll — end to end (spec sample payroll flow, sec
       pfApplicable: false,
       esiApplicable: false,
       ptApplicable: false,
-      rttApplicable: false,
       bonusRule: null,
       pfRule: null,
       esiRule: null,
       ptSlabs: [],
-      rttRule: null,
     });
     expect(r.advance).toBe(1000);
     expect(r.netSalary).toBe(20000 - 1000);
@@ -475,13 +447,11 @@ describe("calculateEmployeePayroll — end to end (spec sample payroll flow, sec
         pfApplicable: false,
         esiApplicable: false,
         ptApplicable: false,
-        rttApplicable: false,
-        bonusRule: null,
+          bonusRule: null,
         pfRule: null,
         esiRule: null,
         ptSlabs: [],
-        rttRule: null,
-      })
+        })
     ).toThrow(PayrollValidationError);
   });
 });

@@ -1,5 +1,5 @@
 /**
- * Effective-dated rule resolution. Payroll rules (PF/ESI/PT/RTT/Bonus) can
+ * Effective-dated rule resolution. Payroll rules (PF/ESI/PT/Bonus) can
  * change over time; every rule row carries an effectiveFrom (and optional
  * effectiveTo). Given a target date, we pick the most recent rule whose
  * window covers that date. This is what lets a July PF-rate change leave

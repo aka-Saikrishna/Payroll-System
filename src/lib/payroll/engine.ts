@@ -115,7 +115,7 @@ export function computeBonus(bonusRule: BonusRuleConfig | null, isEligible: bool
 }
 
 // ------------------------------------------------------------------
-// Statutory deductions — PF, ESI, PT, RTT
+// Statutory deductions — PF, ESI, PT
 // All rates/slabs/ceilings are rule-driven; nothing is hard-coded here.
 // ------------------------------------------------------------------
 
@@ -168,16 +168,6 @@ export function computePt(slabs: PtSlabConfig[], applicable: boolean, wageBase: 
   return slab ? round2(slab.ptAmount) : 0;
 }
 
-export interface RttRuleConfig {
-  enabled: boolean;
-  amount: number;
-}
-
-export function computeRtt(rule: RttRuleConfig | null, applicable: boolean): number {
-  if (!applicable || !rule || !rule.enabled) return 0;
-  return round2(rule.amount);
-}
-
 // ------------------------------------------------------------------
 // Over-Time / Late Hours (Register of Wages format)
 //
@@ -214,12 +204,10 @@ export interface EmployeePayrollInput {
   pfApplicable: boolean;
   esiApplicable: boolean;
   ptApplicable: boolean;
-  rttApplicable: boolean;
   bonusRule: BonusRuleConfig | null;
   pfRule: PfRuleConfig | null;
   esiRule: EsiRuleConfig | null;
   ptSlabs: PtSlabConfig[];
-  rttRule: RttRuleConfig | null;
 }
 
 export interface EmployeePayrollResult {
@@ -243,7 +231,6 @@ export interface EmployeePayrollResult {
   esi: number;
   pf: number;
   pt: number;
-  rtt: number;
   advance: number;
   canteenCharges: number;
   totalDeductions: number;
@@ -287,11 +274,10 @@ export function calculateEmployeePayroll(input: EmployeePayrollInput): EmployeeP
   // (a worker on Rs.21,000/month still pays the Rs.200 slab in a month where
   // absences cut his earned salary to Rs.10,161).
   const pt = computePt(input.ptSlabs, input.ptApplicable, input.monthlySalary);
-  const rtt = computeRtt(input.rttRule, input.rttApplicable);
   const advance = round2(input.advanceAmount);
   const canteenCharges = round2(input.canteenCharges);
 
-  const totalDeductions = round2(esi + pf + pt + rtt + advance + canteenCharges);
+  const totalDeductions = round2(esi + pf + pt + advance + canteenCharges);
   const netSalary = roundToNearest10(totalEarnings - totalDeductions);
 
   return {
@@ -313,7 +299,6 @@ export function calculateEmployeePayroll(input: EmployeePayrollInput): EmployeeP
     esi,
     pf,
     pt,
-    rtt,
     advance,
     canteenCharges,
     totalDeductions,

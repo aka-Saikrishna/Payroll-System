@@ -39,7 +39,6 @@ interface PayrollRecordRow {
   pf: string;
   esi: string;
   pt: string;
-  rtt: string;
   advance: string;
   canteenCharges: string;
   totalDeductions: string;
@@ -166,10 +165,6 @@ function PayslipCard({ record, monthLabel }: { record: PayrollRecordRow; monthLa
             <div className="flex justify-between text-slate-600">
               <span>PT</span>
               <span className="font-medium text-slate-900">{formatCurrencyINR(record.pt)}</span>
-            </div>
-            <div className="flex justify-between text-slate-600">
-              <span>RTT</span>
-              <span className="font-medium text-slate-900">{formatCurrencyINR(record.rtt)}</span>
             </div>
             <div className="flex justify-between text-slate-600">
               <span>Advance</span>

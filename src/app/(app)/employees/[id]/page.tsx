@@ -78,9 +78,9 @@ export default function EmployeeDetailPage() {
             </div>
           </div>
           <div>
-            <div className="text-xs text-navy-400">PT / RTT</div>
+            <div className="text-xs text-navy-400">PT</div>
             <div>
-              {employee.salaryConfig?.ptApplicable ? "PT" : "—"} / {employee.salaryConfig?.rttApplicable ? "RTT" : "—"}
+              {employee.salaryConfig?.ptApplicable ? "PT" : "—"}
             </div>
           </div>
         </div>

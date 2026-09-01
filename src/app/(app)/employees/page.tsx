@@ -32,7 +32,6 @@ interface EmployeeRow {
     pfApplicable: boolean;
     esiApplicable: boolean;
     ptApplicable: boolean;
-    rttApplicable: boolean;
     paidLeaveApplicable: boolean;
   } | null;
 }
@@ -235,7 +234,6 @@ export default function EmployeesPage() {
                   pfApplicable: editing.salaryConfig?.pfApplicable ?? false,
                   esiApplicable: editing.salaryConfig?.esiApplicable ?? false,
                   ptApplicable: editing.salaryConfig?.ptApplicable ?? true,
-                  rttApplicable: editing.salaryConfig?.rttApplicable ?? false,
                   paidLeaveApplicable: editing.salaryConfig?.paidLeaveApplicable ?? false,
                 }
               : undefined

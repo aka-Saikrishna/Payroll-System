@@ -42,11 +42,10 @@ function computePaymentSplit(netSalary: number, existingChequeAmount: number | n
 }
 
 async function loadRuleSet(asOf: Date) {
-  const [pfRules, esiRules, ptRules, rttRules, bonusRules] = await Promise.all([
+  const [pfRules, esiRules, ptRules, bonusRules] = await Promise.all([
     prisma.pfRule.findMany(),
     prisma.esiRule.findMany(),
     prisma.ptRule.findMany(),
-    prisma.rttRule.findMany(),
     prisma.bonusRule.findMany(),
   ]);
 
@@ -56,10 +55,6 @@ async function loadRuleSet(asOf: Date) {
   );
   const esiRule = resolveApplicableRule(
     esiRules.map((r) => ({ ...r, ratePercent: toNum(r.ratePercent), wageCeiling: r.wageCeiling != null ? toNum(r.wageCeiling) : null })),
-    asOf
-  );
-  const rttRule = resolveApplicableRule(
-    rttRules.map((r) => ({ ...r, amount: toNum(r.amount) })),
     asOf
   );
   const bonusRule = resolveApplicableRule(
@@ -76,7 +71,7 @@ async function loadRuleSet(asOf: Date) {
     asOf
   ).sort((a, b) => toNum(a.minSalary) - toNum(b.minSalary));
 
-  return { pfRule, esiRule, ptSlabs, rttRule, bonusRule };
+  return { pfRule, esiRule, ptSlabs, bonusRule };
 }
 
 async function computeAttendanceCounts(employeeId: string, monthStart: Date, monthEnd: Date) {
@@ -168,12 +163,10 @@ export async function generatePayrollForPeriod(payrollPeriodId: string, userId: 
       pfApplicable: employee.salaryConfig.pfApplicable,
       esiApplicable: employee.salaryConfig.esiApplicable,
       ptApplicable: employee.salaryConfig.ptApplicable,
-      rttApplicable: employee.salaryConfig.rttApplicable,
       bonusRule: ruleSet.bonusRule,
       pfRule: ruleSet.pfRule,
       esiRule: ruleSet.esiRule,
       ptSlabs: ruleSet.ptSlabs,
-      rttRule: ruleSet.rttRule,
     });
 
     const { cashAmount, chequeAmount } = computePaymentSplit(result.netSalary, existing ? toNum(existing.chequeAmount) : null);
@@ -205,7 +198,6 @@ export async function generatePayrollForPeriod(payrollPeriodId: string, userId: 
       esi: result.esi,
       pf: result.pf,
       pt: result.pt,
-      rtt: result.rtt,
       advance: result.advance,
       canteenCharges: result.canteenCharges,
       totalDeductions: result.totalDeductions,
@@ -214,7 +206,6 @@ export async function generatePayrollForPeriod(payrollPeriodId: string, userId: 
       chequeAmount,
       appliedPfRateId: ruleSet.pfRule?.id ?? null,
       appliedEsiRuleId: ruleSet.esiRule?.id ?? null,
-      appliedRttRuleId: ruleSet.rttRule?.id ?? null,
       appliedBonusRuleId: ruleSet.bonusRule?.id ?? null,
       status: "REVIEW" as PayrollStatus,
     };
@@ -280,12 +271,10 @@ export async function recalculateSingleEmployeePayroll(payrollPeriodId: string, 
     pfApplicable: employee.salaryConfig.pfApplicable,
     esiApplicable: employee.salaryConfig.esiApplicable,
     ptApplicable: employee.salaryConfig.ptApplicable,
-    rttApplicable: employee.salaryConfig.rttApplicable,
     bonusRule: ruleSet.bonusRule,
     pfRule: ruleSet.pfRule,
     esiRule: ruleSet.esiRule,
     ptSlabs: ruleSet.ptSlabs,
-    rttRule: ruleSet.rttRule,
   });
 
   const { cashAmount, chequeAmount } = computePaymentSplit(result.netSalary, existing ? toNum(existing.chequeAmount) : null);
@@ -308,7 +297,6 @@ export async function recalculateSingleEmployeePayroll(payrollPeriodId: string, 
       chequeAmount,
       appliedPfRateId: ruleSet.pfRule?.id ?? null,
       appliedEsiRuleId: ruleSet.esiRule?.id ?? null,
-      appliedRttRuleId: ruleSet.rttRule?.id ?? null,
       appliedBonusRuleId: ruleSet.bonusRule?.id ?? null,
       status: "REVIEW",
     },
@@ -319,7 +307,6 @@ export async function recalculateSingleEmployeePayroll(payrollPeriodId: string, 
       chequeAmount,
       appliedPfRateId: ruleSet.pfRule?.id ?? null,
       appliedEsiRuleId: ruleSet.esiRule?.id ?? null,
-      appliedRttRuleId: ruleSet.rttRule?.id ?? null,
       appliedBonusRuleId: ruleSet.bonusRule?.id ?? null,
     },
   });
@@ -361,7 +348,7 @@ export async function updatePayrollExtras(
   const otAmount = computeOvertimeAmount(extras.otDays, toNum(record.dailyRate));
   const totalEarnings = roundToNearest10(toNum(record.salaryAfterAbsence) + toNum(record.bonus) + otAmount);
   const totalDeductions = round2(
-    toNum(record.esi) + toNum(record.pf) + toNum(record.pt) + toNum(record.rtt) + toNum(record.advance) + extras.canteenCharges
+    toNum(record.esi) + toNum(record.pf) + toNum(record.pt) + toNum(record.advance) + extras.canteenCharges
   );
   const netSalary = roundToNearest10(totalEarnings - totalDeductions);
   const { cashAmount, chequeAmount } = computePaymentSplit(netSalary, toNum(record.chequeAmount));

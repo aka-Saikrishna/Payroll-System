@@ -21,7 +21,6 @@ export async function GET() {
       { header: "PF Applicable", example: "TRUE" },
       { header: "ESI Applicable", example: "FALSE" },
       { header: "PT Applicable", example: "TRUE" },
-      { header: "RTT Applicable", example: "FALSE" },
       { header: "Paid Leave Applicable", example: "FALSE" },
     ]);
 
