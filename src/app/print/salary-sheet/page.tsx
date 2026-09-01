@@ -63,22 +63,22 @@ function PayslipCard({ record, monthLabel }: { record: PayrollRecordRow; monthLa
   const hasChequePayment = Number(record.chequeAmount) > 0;
 
   return (
-    <div className="payslip-col flex flex-col justify-between p-3.5 bg-white border border-slate-400 rounded-sm text-slate-800 text-[14px]">
+    <div className="payslip-col flex flex-col justify-between p-3.5 bg-white border border-slate-400 rounded-sm text-slate-800 text-[11px]">
       {/* Header */}
       <div>
         <div className="text-center pb-2 border-b border-slate-200">
-          <div className="text-[14px] font-bold text-slate-700 uppercase tracking-wide leading-tight">
+          <div className="text-[11px] font-bold text-slate-700 uppercase tracking-wide leading-tight">
             {getCompanyByCode(record.employee.company || "VPPL").name}
           </div>
-          <div className="text-[13px] text-slate-500 font-medium mt-0.5">{monthLabel}</div>
-          <div className="text-[16px] font-bold text-slate-900 uppercase tracking-wide mt-0.5 leading-tight">
+          <div className="text-[10px] text-slate-500 font-medium mt-0.5">{monthLabel}</div>
+          <div className="text-[13px] font-bold text-slate-900 uppercase tracking-wide mt-0.5 leading-tight">
             {record.employee.name}
           </div>
         </div>
 
         {/* Attendance Summary */}
         <div className="py-2 border-b border-slate-200">
-          <h4 className="text-[13px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+          <h4 className="text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
             ATTENDANCE SUMMARY
           </h4>
           <div className="space-y-0.5">
@@ -115,7 +115,7 @@ function PayslipCard({ record, monthLabel }: { record: PayrollRecordRow; monthLa
 
         {/* Salary */}
         <div className="py-2 border-b border-slate-200">
-          <h4 className="text-[13px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+          <h4 className="text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
             SALARY
           </h4>
           <div className="space-y-0.5">
@@ -150,7 +150,7 @@ function PayslipCard({ record, monthLabel }: { record: PayrollRecordRow; monthLa
 
         {/* Deductions */}
         <div className="py-2">
-          <h4 className="text-[13px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+          <h4 className="text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
             DEDUCTIONS
           </h4>
           <div className="space-y-0.5">
@@ -187,13 +187,13 @@ function PayslipCard({ record, monthLabel }: { record: PayrollRecordRow; monthLa
       {/* Net Salary at Bottom */}
       <div className="mt-auto">
         <div className="border-t-2 border-slate-900 pt-2 flex justify-between items-center">
-          <span className="font-bold text-[14px] uppercase tracking-wide text-slate-900">NET SALARY</span>
-          <span className="font-extrabold text-[16px] text-slate-900">{formatCurrencyINR(record.netSalary)}</span>
+          <span className="font-bold text-[11px] uppercase tracking-wide text-slate-900">NET SALARY</span>
+          <span className="font-extrabold text-[13px] text-slate-900">{formatCurrencyINR(record.netSalary)}</span>
         </div>
 
         {hasChequePayment && (
           <div className="pt-1.5">
-            <h4 className="text-[12px] font-bold text-slate-700 uppercase tracking-wider mb-1 pb-0.5 border-b border-slate-200">
+            <h4 className="text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1 pb-0.5 border-b border-slate-200">
               PAYMENT
             </h4>
             <div className="space-y-0.5">
@@ -322,16 +322,6 @@ function PrintSalarySheetContent() {
                     ))}
                 </div>
 
-                <div className="payslip-footer flex justify-between items-start gap-4 pt-1.5 mt-1.5 border-t border-slate-300 text-[7px] text-slate-500 leading-snug">
-                  <div>
-                    Notes: 1. One paid leave is provided per month only to employees configured for it. 2. Paid leave is
-                    not carried forward. 3. Working days are taken from the selected month&apos;s company calendar. 4.
-                    Payroll calculations are automatically generated.
-                  </div>
-                  <div className="shrink-0 whitespace-nowrap">
-                    Page {pageIndex + 1} of {pages.length}
-                  </div>
-                </div>
               </div>
             );
           })}
@@ -396,26 +386,21 @@ function PrintSalarySheetContent() {
           .payslip-col {
             border: 0.5px solid #94a3b8 !important;
             border-radius: 1px !important;
-            padding: 4mm 3mm !important;
+            padding: 3mm 3mm !important;
             height: 100% !important;
             box-sizing: border-box !important;
-            font-size: 14px !important;
-            line-height: 1.4 !important;
-            overflow: visible !important;
+            font-size: 11px !important;
+            line-height: 1.7 !important;
           }
           .payslip-col h4 {
-            font-size: 13px !important;
+            font-size: 11px !important;
+            margin-bottom: 2px !important;
           }
-          .payslip-col .text-\\[10px\\] { font-size: 13px !important; }
-          .payslip-col .text-\\[11px\\] { font-size: 14px !important; }
-          .payslip-col .text-\\[13px\\] { font-size: 16px !important; }
+          .payslip-col .text-\\[10px\\] { font-size: 10px !important; }
+          .payslip-col .text-\\[11px\\] { font-size: 11px !important; }
+          .payslip-col .text-\\[13px\\] { font-size: 13px !important; }
           .payslip-col-empty {
             border: none !important;
-          }
-          .payslip-footer {
-            font-size: 6px !important;
-            margin-top: 1mm !important;
-            padding-top: 1mm !important;
           }
         }
       `}</style>
