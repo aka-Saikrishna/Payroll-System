@@ -390,15 +390,15 @@ function PrintSalarySheetContent() {
             height: 100% !important;
             box-sizing: border-box !important;
             font-size: 17px !important;
-            line-height: 1.45 !important;
+            line-height: 1.35 !important;
           }
           .payslip-col h4 {
             font-size: 16px !important;
-            margin-bottom: 2px !important;
+            margin-bottom: 1px !important;
           }
           .payslip-col .border-b {
-            padding-top: 3px !important;
-            padding-bottom: 3px !important;
+            padding-top: 2px !important;
+            padding-bottom: 2px !important;
           }
           .payslip-col .text-\\[10px\\] { font-size: 16px !important; }
           .payslip-col .text-\\[11px\\] { font-size: 17px !important; }
