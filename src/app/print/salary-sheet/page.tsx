@@ -389,8 +389,16 @@ function PrintSalarySheetContent() {
             padding: 3mm 3mm !important;
             height: 100% !important;
             box-sizing: border-box !important;
-            line-height: 1.7 !important;
+            font-size: 3.2mm !important;
+            line-height: 1.8 !important;
           }
+          .payslip-col h4 {
+            font-size: 3.2mm !important;
+            margin-bottom: 0.5mm !important;
+          }
+          .payslip-col .text-\\[10px\\] { font-size: 3mm !important; }
+          .payslip-col .text-\\[11px\\] { font-size: 3.2mm !important; }
+          .payslip-col .text-\\[13px\\] { font-size: 3.8mm !important; }
           .payslip-col-empty {
             border: none !important;
           }
