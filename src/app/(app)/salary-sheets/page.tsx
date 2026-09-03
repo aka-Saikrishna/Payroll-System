@@ -97,7 +97,7 @@ function EditableAmount({
         type="text"
         inputMode="numeric"
         disabled={disabled}
-        className={`input py-1 px-1.5 text-xs ${width} ${align === "right" ? "text-right" : ""} disabled:bg-navy-50 disabled:text-navy-400`}
+        className={`input py-1 px-1.5 text-sm ${width} ${align === "right" ? "text-right" : ""} disabled:bg-navy-50 disabled:text-navy-400`}
         value={local}
         onChange={(e) => setLocal(e.target.value)}
         onBlur={commit}
@@ -669,7 +669,7 @@ export default function SalarySheetsPage() {
           }
         />
       ) : (
-        <div className="flex-1 min-h-0 overflow-auto rounded-lg border border-navy-100">
+        <div className="scroll-thick flex-1 min-h-0 overflow-auto rounded-lg border border-navy-100">
           <table className="table-base !border-separate border-spacing-0">
             <thead>
               <tr>

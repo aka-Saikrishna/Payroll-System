@@ -43,12 +43,39 @@
   .table-base {
     @apply w-full text-sm border-collapse;
   }
+  /* 13px/16px keeps the header row exactly 33px tall, which the sticky
+     second header row depends on (top-[33px]). */
   .table-base th {
-    @apply text-left font-medium text-navy-500 text-xs uppercase tracking-wide px-3 py-2 border-b border-navy-200 bg-navy-50/60;
+    @apply text-left font-medium text-navy-500 text-[13px] leading-4 uppercase tracking-wide px-3 py-2 border-b border-navy-200 bg-navy-50/60;
   }
   .table-base td {
     @apply px-3 py-2 border-b border-navy-200 text-navy-800;
   }
+}
+
+/* Wide, high-contrast scrollbars so the salary sheet can be dragged with a
+   mouse, not just swiped on a touchpad. */
+.scroll-thick {
+  scrollbar-width: auto;
+  scrollbar-color: #94a3b8 #f1f5f9;
+}
+.scroll-thick::-webkit-scrollbar {
+  height: 18px;
+  width: 18px;
+}
+.scroll-thick::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+.scroll-thick::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 9px;
+  border: 4px solid #f1f5f9;
+}
+.scroll-thick::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+.scroll-thick::-webkit-scrollbar-corner {
+  background: #f1f5f9;
 }
 
 @media print {
