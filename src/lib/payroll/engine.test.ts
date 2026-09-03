@@ -127,13 +127,12 @@ describe("PF calculation", () => {
     expect(computePf({ enabled: true, ratePercent: 12, wageCeiling: 15000 }, true, 20000, 30, 30)).toBe(1800);
   });
 
-  // Verified against the factory's own PF calculation for Vallala Prakash:
   // 14000 / 31 * 30 * 12% = 1625.806... -> rounds to Rs.1626.
-  it("prorates Basic Salary by Present Days / Working Days, rounded to the nearest rupee", () => {
+  it("prorates Basic Salary by Payable Days / Working Days, rounded to the nearest rupee", () => {
     expect(computePf({ enabled: true, ratePercent: 12, wageCeiling: null }, true, 14000, 31, 30)).toBe(1626);
   });
 
-  it("0 present days under a PF-applicable employee -> PF of 0", () => {
+  it("0 payable days -> PF of 0", () => {
     expect(computePf({ enabled: true, ratePercent: 12, wageCeiling: null }, true, 14000, 31, 0)).toBe(0);
   });
 });
@@ -230,7 +229,7 @@ describe("PF and ESI wage bases — PF prorated on Basic Salary, ESI on Salary A
   const esiRule = { enabled: true, ratePercent: 0.75, wageCeiling: 21000 };
   const bonusRule = { enabled: true, amount: 200 };
 
-  it("PF drops proportionally under heavy absence, since it prorates Basic Salary by Present Days", () => {
+  it("PF drops proportionally under heavy absence, since it prorates Basic Salary by Payable Days", () => {
     const r = calculateEmployeePayroll({
       basicSalary: 15000,
       monthlySalary: 21000, // Basic 15000 + HRA/Conveyance 6000
