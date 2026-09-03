@@ -126,8 +126,14 @@ function AttendanceRowItem({
 export default function AttendancePage() {
   const company = useCompany();
   const now = new Date();
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth() + 1);
+  const defaultMonth = now.getDate() < 15
+    ? (now.getMonth() === 0 ? 12 : now.getMonth())
+    : now.getMonth() + 1;
+  const defaultYear = now.getDate() < 15 && now.getMonth() === 0
+    ? now.getFullYear() - 1
+    : now.getFullYear();
+  const [year, setYear] = useState(defaultYear);
+  const [month, setMonth] = useState(defaultMonth);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
 
