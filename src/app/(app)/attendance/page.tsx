@@ -9,6 +9,7 @@ import { ImportPanel } from "@/components/excel/ImportPanel";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { useCompany } from "@/lib/hooks/useCompany";
 import { computeAttendanceDerivedFields } from "@/lib/payroll/engine";
+import { DownloadIcon } from "@/components/icons";
 
 interface AttendanceRow {
   employeeId: string;
@@ -155,14 +156,21 @@ export default function AttendancePage() {
     <div className="space-y-4 max-w-6xl">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <PeriodPicker year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m); }} />
-        {data?.period && (
-          <div className="text-xs text-navy-500">
-            Working Days: <span className="font-semibold text-navy-800">{data.period.workingDays}</span>{" "}
-            (total calendar days in the month) · Weekly Off {data.period.weeklyOffDays} · Holidays{" "}
-            {data.period.holidayDays} <span className="text-navy-400">(reference only, not deducted)</span>
-          </div>
-        )}
+        <a
+          href={`/api/export/attendance/excel?year=${year}&month=${month}&company=${company.code}`}
+          className="btn-secondary"
+          download
+        >
+          <DownloadIcon /> Download Attendance
+        </a>
       </div>
+      {data?.period && (
+        <div className="text-xs text-navy-500">
+          Working Days: <span className="font-semibold text-navy-800">{data.period.workingDays}</span>{" "}
+          (total calendar days in the month) · Weekly Off {data.period.weeklyOffDays} · Holidays{" "}
+          {data.period.holidayDays} <span className="text-navy-400">(reference only, not deducted)</span>
+        </div>
+      )}
 
       <Toolbar search={search} onSearchChange={setSearch} searchPlaceholder="Search by employee name...">
         <ImportPanel
