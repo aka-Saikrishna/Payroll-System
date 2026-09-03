@@ -6,6 +6,8 @@ import { z } from "zod";
 const extrasSchema = z.object({
   canteenCharges: z.coerce.number().min(0, "Canteen charges cannot be negative"),
   otDays: z.coerce.number().min(0, "OT days cannot be negative"),
+  otherAmount: z.coerce.number().min(0, "Other amount cannot be negative"),
+  bonus: z.coerce.number().min(0, "Bonus cannot be negative").optional(),
 });
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {

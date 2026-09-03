@@ -19,6 +19,7 @@ export interface RegisterRow {
   canteenCharges: number;
   totalDeductions: number;
   otAmount: number;
+  otherAmount: number;
   netSalaryPaid: number;
   dateOfPayment: string;
 }
@@ -39,7 +40,7 @@ const THIN_BORDER: Partial<ExcelJS.Borders> = {
   right: { style: "thin" },
 };
 
-const TOTAL_COLUMNS = 20;
+const TOTAL_COLUMNS = 21;
 
 /**
  * Builds a workbook replicating the factory's "Payment Register - Register
@@ -51,7 +52,7 @@ export async function buildRegisterOfWagesWorkbook(header: RegisterHeader, rows:
     pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
   });
 
-  const colWidths = [6, 22, 11, 9, 11, 11, 11, 11, 13, 12, 12, 12, 10, 12, 11, 14, 14, 12, 13, 14];
+  const colWidths = [6, 22, 11, 9, 11, 11, 11, 11, 13, 12, 12, 12, 10, 12, 11, 14, 12, 14, 12, 13, 14];
   sheet.columns = colWidths.map((width) => ({ width }));
 
   function mergeAndSet(row: number, colStart: number, colEnd: number, value: string, opts?: { bold?: boolean; size?: number }) {
@@ -70,23 +71,23 @@ export async function buildRegisterOfWagesWorkbook(header: RegisterHeader, rows:
   sheet.mergeCells(3, 1, 3, 3);
   sheet.getCell(3, 1).value = "Name and Address of the Factory :";
   sheet.getCell(3, 1).font = { bold: true, size: 10 };
-  sheet.mergeCells(3, 4, 3, 15);
+  sheet.mergeCells(3, 4, 3, 16);
   sheet.getCell(3, 4).value = `M/s. ${header.companyName}    ${header.address}`;
   sheet.getCell(3, 4).font = { size: 10 };
   sheet.getCell(3, 4).alignment = { wrapText: true, vertical: "middle" };
-  sheet.mergeCells(3, 16, 3, 17);
-  sheet.getCell(3, 16).value = "For the month of";
-  sheet.getCell(3, 16).font = { bold: true, size: 10 };
-  sheet.mergeCells(3, 18, 3, 20);
-  sheet.getCell(3, 18).value = `${MONTH_NAMES[header.month - 1].toUpperCase()} ${header.year}`;
-  sheet.getCell(3, 18).font = { bold: true, size: 10 };
-  sheet.getCell(3, 18).alignment = { horizontal: "center" };
+  sheet.mergeCells(3, 17, 3, 18);
+  sheet.getCell(3, 17).value = "For the month of";
+  sheet.getCell(3, 17).font = { bold: true, size: 10 };
+  sheet.mergeCells(3, 19, 3, 21);
+  sheet.getCell(3, 19).value = `${MONTH_NAMES[header.month - 1].toUpperCase()} ${header.year}`;
+  sheet.getCell(3, 19).font = { bold: true, size: 10 };
+  sheet.getCell(3, 19).alignment = { horizontal: "center" };
 
   // Row 4: Manager
   sheet.mergeCells(4, 1, 4, 7);
   sheet.getCell(4, 1).value = "Name of the Manager / Person responsible for payment of Salaries :";
   sheet.getCell(4, 1).font = { bold: true, size: 10 };
-  sheet.mergeCells(4, 8, 4, 12);
+  sheet.mergeCells(4, 8, 4, 13);
   sheet.getCell(4, 8).value = header.managerName;
   sheet.getCell(4, 8).font = { size: 10 };
 
@@ -106,10 +107,11 @@ export async function buildRegisterOfWagesWorkbook(header: RegisterHeader, rows:
       subLabels: ["Provident Fund", "ESI Contribution", "Professional Tax", "Advance", "Canteen Charges", "Total"],
     },
     { label: "Over-Time / Late Hours", colStart: 16, colEnd: 16 },
-    { label: "Net Salary Paid", colStart: 17, colEnd: 17 },
-    { label: "Signature", colStart: 18, colEnd: 18 },
-    { label: "Date of Payment", colStart: 19, colEnd: 19 },
-    { label: "Remarks", colStart: 20, colEnd: 20 },
+    { label: "Other Amount", colStart: 17, colEnd: 17 },
+    { label: "Net Salary Paid", colStart: 18, colEnd: 18 },
+    { label: "Signature", colStart: 19, colEnd: 19 },
+    { label: "Date of Payment", colStart: 20, colEnd: 20 },
+    { label: "Remarks", colStart: 21, colEnd: 21 },
   ];
 
   for (const group of headerGroups) {
@@ -160,6 +162,7 @@ export async function buildRegisterOfWagesWorkbook(header: RegisterHeader, rows:
       r.canteenCharges ? round0(r.canteenCharges) : "",
       round0(r.totalDeductions),
       r.otAmount ? round0(r.otAmount) : "",
+      r.otherAmount ? round0(r.otherAmount) : "",
       round0(r.netSalaryPaid),
       "",
       r.dateOfPayment,

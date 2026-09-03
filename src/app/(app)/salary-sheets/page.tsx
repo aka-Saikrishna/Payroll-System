@@ -38,6 +38,7 @@ interface PayrollRecordRow {
   canteenCharges: string;
   otDays: string;
   otAmount: string;
+  otherAmount: string;
   totalEarnings: string;
   totalDeductions: string;
   netSalary: string;
@@ -121,6 +122,7 @@ function SalarySheetRow({
   selected,
   onToggle,
   isFinalized,
+  bonusEnabled,
   onChanged,
   linkPrefix,
   recordsQueryKey,
@@ -135,6 +137,7 @@ function SalarySheetRow({
   onChanged: () => void;
   linkPrefix: string;
   recordsQueryKey: unknown[];
+  bonusEnabled: boolean;
 }) {
   const queryClient = useQueryClient();
   const [rowError, setRowError] = useState<string | null>(null);
@@ -162,17 +165,18 @@ function SalarySheetRow({
   }
 
   const mutExtras = useMutation({
-    mutationFn: (vals: { canteenCharges: number; otDays: number }) =>
+    mutationFn: (vals: { canteenCharges: number; otDays: number; otherAmount: number; bonus?: number }) =>
       post(`/api/payroll/records/${record.id}/extras`, vals),
     onMutate: async (vals) => {
       await queryClient.cancelQueries({ queryKey: recordsQueryKey });
       const prev = queryClient.getQueryData(recordsQueryKey);
       const otAmount = r10(vals.otDays * Number(record.dailyRate));
-      const totalEarnings = r10(Number(record.salaryAfterAbsence) + Number(record.bonus) + otAmount);
+      const bonus = vals.bonus !== undefined ? vals.bonus : Number(record.bonus);
+      const totalEarnings = r10(Number(record.salaryAfterAbsence) + bonus + otAmount + vals.otherAmount);
       const totalDeductions = r2(Number(record.pf) + Number(record.esi) + Number(record.pt) + Number(record.advance) + vals.canteenCharges);
       const netSalary = r10(totalEarnings - totalDeductions);
       const cheque = r2(Math.min(Math.max(Number(record.chequeAmount), 0), Math.max(netSalary, 0)));
-      patchRecord({ otDays: String(vals.otDays), otAmount: String(otAmount), canteenCharges: String(vals.canteenCharges), totalEarnings: String(totalEarnings), totalDeductions: String(totalDeductions), netSalary: String(netSalary), cashAmount: String(r2(netSalary - cheque)), chequeAmount: String(cheque) });
+      patchRecord({ ...(vals.bonus !== undefined ? { bonus: String(bonus) } : {}), otDays: String(vals.otDays), otAmount: String(otAmount), otherAmount: String(vals.otherAmount), canteenCharges: String(vals.canteenCharges), totalEarnings: String(totalEarnings), totalDeductions: String(totalDeductions), netSalary: String(netSalary), cashAmount: String(r2(netSalary - cheque)), chequeAmount: String(cheque) });
       return { prev };
     },
     onSuccess: (data) => { setRowError(null); if (data.record) patchRecord(data.record); },
@@ -268,7 +272,15 @@ function SalarySheetRow({
         <ReadCell value={formatCurrencyINR(record.salaryAfterAbsence)} />
       </td>
       <td>
-        <ReadCell value={formatCurrencyINR(record.bonus)} />
+        {bonusEnabled ? (
+          <EditableAmount
+            value={Number(record.bonus)}
+            disabled={disabled}
+            onCommit={(n) => mutExtras.mutate({ canteenCharges: Number(record.canteenCharges), otDays: Number(record.otDays), otherAmount: Number(record.otherAmount), bonus: n })}
+          />
+        ) : (
+          <ReadCell value={formatCurrencyINR(record.bonus)} />
+        )}
       </td>
       <td>
         <EditableAmount
@@ -276,11 +288,18 @@ function SalarySheetRow({
           disabled={disabled}
           width="w-14"
           step="0.5"
-          onCommit={(n) => mutExtras.mutate({ canteenCharges: Number(record.canteenCharges), otDays: n })}
+          onCommit={(n) => mutExtras.mutate({ canteenCharges: Number(record.canteenCharges), otDays: n, otherAmount: Number(record.otherAmount) })}
         />
       </td>
       <td>
         <ReadCell value={formatCurrencyINR(record.otAmount)} />
+      </td>
+      <td>
+        <EditableAmount
+          value={Number(record.otherAmount)}
+          disabled={disabled}
+          onCommit={(n) => mutExtras.mutate({ canteenCharges: Number(record.canteenCharges), otDays: Number(record.otDays), otherAmount: n })}
+        />
       </td>
       <td>
         <ReadCell value={formatCurrencyINR(record.totalEarnings)} emphasis />
@@ -303,7 +322,7 @@ function SalarySheetRow({
         <EditableAmount
           value={Number(record.canteenCharges)}
           disabled={disabled}
-          onCommit={(n) => mutExtras.mutate({ canteenCharges: n, otDays: Number(record.otDays) })}
+          onCommit={(n) => mutExtras.mutate({ canteenCharges: n, otDays: Number(record.otDays), otherAmount: Number(record.otherAmount) })}
         />
       </td>
       <td>
@@ -351,6 +370,7 @@ export default function SalarySheetsPage() {
   const [reopenOpen, setReopenOpen] = useState(false);
   const [reopenReason, setReopenReason] = useState("");
   const [busy, setBusy] = useState(false);
+  const [bonusToggling, setBonusToggling] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -478,6 +498,29 @@ export default function SalarySheetsPage() {
     }
   }
 
+  const bonusEnabled = periodData?.bonusEnabled ?? false;
+
+  async function handleBonusToggle(checked: boolean) {
+    if (!periodId) return;
+    setBonusToggling(true);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/payroll/periods/${periodId}/bonus-toggle`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: checked, company: company.code }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setActionError(data.error || "Unable to toggle bonus");
+        return;
+      }
+      refreshAll();
+    } finally {
+      setBonusToggling(false);
+    }
+  }
+
   const records: PayrollRecordRow[] = recordsData?.records || [];
   const isFinalized = periodData?.status === "FINALIZED";
   const allEmployeeIds = records.map((r) => r.employee.id);
@@ -571,6 +614,25 @@ export default function SalarySheetsPage() {
 
       {actionError && <div className="shrink-0 rounded-md bg-danger-50 text-danger-700 text-sm px-3 py-2">{actionError}</div>}
 
+      {periodId && records.length > 0 && (
+        <div className="shrink-0 flex items-center gap-3 rounded-md bg-navy-50 text-navy-700 text-xs px-3 py-2">
+          <label className="flex items-center gap-2 font-medium cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={bonusEnabled}
+              disabled={isFinalized || bonusToggling}
+              onChange={(e) => handleBonusToggle(e.target.checked)}
+            />
+            {bonusToggling ? "Updating..." : "Enable Full Attendance Bonus"}
+          </label>
+          <span className="text-navy-400">
+            {bonusEnabled
+              ? "Bonus is active — eligible employees receive the bonus. Amount is editable per employee."
+              : "Bonus is off for this month. Check to enable."}
+          </span>
+        </div>
+      )}
+
       {isFinalized && (
         <div className="shrink-0 rounded-md bg-navy-50 text-navy-600 text-xs px-3 py-2">
           This payroll is finalized, so the sheet below is read-only. Click <strong>Reopen Payroll</strong> to edit
@@ -579,7 +641,7 @@ export default function SalarySheetsPage() {
       )}
       {!isFinalized && (
         <div className="shrink-0 rounded-md bg-navy-50 text-navy-600 text-xs px-3 py-2">
-          OT Days, Advance, Canteen Charges and Cheque Amount are editable directly in the cell below —
+          OT Days, Other Amount, Advance, Canteen Charges and Cheque Amount are editable directly in the cell below —
           click in, type, and tab or click away to save. Attendance is managed from the Attendance page. Basic Salary,
           HRA and Conveyance are edited from the Employees page. Statutory figures (PF, ESI, PT) and totals are
           calculated automatically.
@@ -626,7 +688,7 @@ export default function SalarySheetsPage() {
                 <th colSpan={7} className="sticky top-0 z-[8] text-center border-l border-navy-200 !bg-white">
                   Attendance
                 </th>
-                <th colSpan={5} className="sticky top-0 z-[8] text-center border-l border-navy-200 !bg-white">
+                <th colSpan={6} className="sticky top-0 z-[8] text-center border-l border-navy-200 !bg-white">
                   Earned Salary
                 </th>
                 <th colSpan={7} className="sticky top-0 z-[8] text-center border-l border-navy-200 !bg-white">
@@ -658,6 +720,7 @@ export default function SalarySheetsPage() {
                 <th className="sticky top-[33px] z-[8] !bg-white">Bonus</th>
                 <th className="sticky top-[33px] z-[8] !bg-white">OT Days</th>
                 <th className="sticky top-[33px] z-[8] !bg-white">OT Amount</th>
+                <th className="sticky top-[33px] z-[8] !bg-white">Other Amt</th>
                 <th className="sticky top-[33px] z-[8] !bg-white">Total Earnings</th>
                 <th className="sticky top-[33px] z-[8] border-l border-navy-200 !bg-white">PF</th>
                 <th className="sticky top-[33px] z-[8] !bg-white">ESI</th>
@@ -680,6 +743,7 @@ export default function SalarySheetsPage() {
                   selected={selectedIds.has(r.employee.id)}
                   onToggle={() => toggleSelected(r.employee.id)}
                   isFinalized={isFinalized}
+                  bonusEnabled={bonusEnabled}
                   onChanged={refreshAll}
                   linkPrefix={company.prefix}
                   recordsQueryKey={recordsQueryKey}
@@ -694,7 +758,7 @@ export default function SalarySheetsPage() {
                 <td>{formatCurrencyINR(totals.rateOfPay)}</td>
                 <td colSpan={7}></td>
                 <td>{formatCurrencyINR(totals.salary)}</td>
-                <td colSpan={3}></td>
+                <td colSpan={4}></td>
                 <td>{formatCurrencyINR(totals.earnings)}</td>
                 <td colSpan={6}></td>
                 <td>{formatCurrencyINR(totals.deductions)}</td>

@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
       canteenCharges: Number(r.canteenCharges),
       totalDeductions: Number(r.totalDeductions),
       otAmount: Number(r.otAmount),
+      otherAmount: Number(r.otherAmount),
       netSalaryPaid: Number(r.netSalary),
       dateOfPayment: r.status === "FINALIZED" ? formatDate(r.updatedAt) : "",
     }));

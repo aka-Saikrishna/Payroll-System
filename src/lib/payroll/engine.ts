@@ -200,6 +200,7 @@ export interface EmployeePayrollInput {
   advanceAmount: number;
   canteenCharges: number;
   otDays: number;
+  otherAmount: number;
   paidLeaveApplicable: boolean;
   pfApplicable: boolean;
   esiApplicable: boolean;
@@ -226,6 +227,7 @@ export interface EmployeePayrollResult {
   dailyRate: number;
   otDays: number;
   otAmount: number;
+  otherAmount: number;
   totalEarnings: number;
 
   esi: number;
@@ -242,6 +244,7 @@ export function calculateEmployeePayroll(input: EmployeePayrollInput): EmployeeP
   if (input.advanceAmount < 0) throw new PayrollValidationError("Advance cannot be negative");
   if (input.canteenCharges < 0) throw new PayrollValidationError("Canteen charges cannot be negative");
   if (input.otDays < 0) throw new PayrollValidationError("OT days cannot be negative");
+  if (input.otherAmount < 0) throw new PayrollValidationError("Other amount cannot be negative");
 
   const { paidLeave, paidLeaveUsed, deductibleAbsentDays, payableDays } = computeAttendanceDerivedFields({
     workingDays: input.workingDays,
@@ -262,7 +265,8 @@ export function calculateEmployeePayroll(input: EmployeePayrollInput): EmployeeP
   const dailyRate = computeDailyRate(input.monthlySalary, input.workingDays);
   const otAmount = computeOvertimeAmount(input.otDays, dailyRate);
 
-  const totalEarnings = roundToNearest10(salaryAfterAbsence + bonus + otAmount);
+  const otherAmount = round2(input.otherAmount);
+  const totalEarnings = roundToNearest10(salaryAfterAbsence + bonus + otAmount + otherAmount);
 
   // PF is levied on Basic Salary prorated by days present (see computePf).
   // ESI is levied on Salary After Absence — the Rate of Pay after the
@@ -295,6 +299,7 @@ export function calculateEmployeePayroll(input: EmployeePayrollInput): EmployeeP
     dailyRate,
     otDays: input.otDays,
     otAmount,
+    otherAmount,
     totalEarnings,
     esi,
     pf,

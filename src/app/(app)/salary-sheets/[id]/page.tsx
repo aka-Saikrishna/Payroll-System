@@ -39,6 +39,7 @@ export default function SalarySheetDetailPage() {
 
   const [canteenInput, setCanteenInput] = useState("0");
   const [otDaysInput, setOtDaysInput] = useState("0");
+  const [otherAmountInput, setOtherAmountInput] = useState("0");
   const [savingExtras, setSavingExtras] = useState(false);
   const [extrasError, setExtrasError] = useState<string | null>(null);
 
@@ -48,8 +49,9 @@ export default function SalarySheetDetailPage() {
       setIsSplit(Number(r.chequeAmount) > 0);
       setCanteenInput(String(r.canteenCharges));
       setOtDaysInput(String(r.otDays));
+      setOtherAmountInput(String(r.otherAmount));
     }
-  }, [r?.chequeAmount, r?.canteenCharges, r?.otDays, r]);
+  }, [r?.chequeAmount, r?.canteenCharges, r?.otDays, r?.otherAmount, r]);
 
   if (isLoading) return <div className="text-sm text-navy-400">Loading...</div>;
   if (!r) return <div className="text-sm text-navy-400">Payroll record not found.</div>;
@@ -64,12 +66,13 @@ export default function SalarySheetDetailPage() {
 
   const canteenCharges = Number(canteenInput) || 0;
   const otDays = Number(otDaysInput) || 0;
+  const otherAmount = Number(otherAmountInput) || 0;
   const otAmountPreview = (() => {
     const raw = otDays * Number(r.dailyRate);
     const remainder = ((Math.round(raw) % 10) + 10) % 10;
     return remainder < 5 ? Math.round(raw) - remainder : Math.round(raw) + (10 - remainder);
   })();
-  const isExtrasDirty = canteenCharges !== Number(r.canteenCharges) || otDays !== Number(r.otDays);
+  const isExtrasDirty = canteenCharges !== Number(r.canteenCharges) || otDays !== Number(r.otDays) || otherAmount !== Number(r.otherAmount);
 
   function handleToggleSplit(checked: boolean) {
     setIsSplit(checked);
@@ -103,7 +106,7 @@ export default function SalarySheetDetailPage() {
       const res = await fetch(`/api/payroll/records/${params.id}/extras`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ canteenCharges, otDays }),
+        body: JSON.stringify({ canteenCharges, otDays, otherAmount }),
       });
       const resData = await res.json();
       if (!res.ok) {
@@ -155,6 +158,7 @@ export default function SalarySheetDetailPage() {
             <Row label="Salary After Absence" value={<CurrencyDisplay value={r.salaryAfterAbsence} />} />
             <Row label="Full Attendance Bonus" value={<CurrencyDisplay value={r.bonus} />} />
             <Row label="OT / Late Hours Amount" value={<CurrencyDisplay value={r.otAmount} />} />
+            <Row label="Other Amount" value={<CurrencyDisplay value={r.otherAmount} />} />
             <Row label="Total Earnings" value={<CurrencyDisplay value={r.totalEarnings} />} emphasis />
           </div>
         </div>
@@ -181,9 +185,9 @@ export default function SalarySheetDetailPage() {
         </div>
 
         <div className="mt-5 pt-4 border-t border-navy-100">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-navy-500 mb-2">Canteen Charges & OT / Late Hours</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-navy-500 mb-2">Canteen Charges, OT / Late Hours & Other Amount</h3>
           {extrasError && <div className="rounded-md bg-danger-50 text-danger-700 text-sm px-3 py-2 mb-3">{extrasError}</div>}
-          <div className="grid grid-cols-2 gap-x-8">
+          <div className="grid grid-cols-3 gap-x-6">
             <div>
               <label className="label">Canteen Charges</label>
               <input
@@ -206,17 +210,28 @@ export default function SalarySheetDetailPage() {
                 onChange={(e) => setOtDaysInput(e.target.value)}
               />
             </div>
+            <div>
+              <label className="label">Other Amount</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                className="input"
+                value={otherAmountInput}
+                disabled={isFinalized}
+                onChange={(e) => setOtherAmountInput(e.target.value)}
+              />
+            </div>
           </div>
           <p className="text-xs text-navy-500 mt-2">
             Daily rate: {formatCurrencyINR(r.dailyRate)} · OT Amount ({otDays} × {formatCurrencyINR(r.dailyRate)}, rounded
             to the nearest ₹10): <span className="font-semibold text-navy-700">{formatCurrencyINR(otAmountPreview)}</span>
           </p>
           {isFinalized ? (
-            <p className="text-xs text-navy-400 mt-2">Payroll is finalized — reopen it to edit Canteen Charges / OT Days.</p>
+            <p className="text-xs text-navy-400 mt-2">Payroll is finalized — reopen it to edit extras.</p>
           ) : (
             <div className="flex justify-end mt-3">
               <button className="btn-primary" onClick={handleSaveExtras} disabled={savingExtras || !isExtrasDirty}>
-                {savingExtras ? "Saving..." : "Save Canteen / OT"}
+                {savingExtras ? "Saving..." : "Save Extras"}
               </button>
             </div>
           )}

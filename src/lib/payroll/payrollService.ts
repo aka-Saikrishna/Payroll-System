@@ -121,7 +121,7 @@ export async function generatePayrollForPeriod(payrollPeriodId: string, userId: 
     }),
     prisma.payrollRecord.findMany({
       where: { payrollPeriodId, employee: { status: "ACTIVE", company } },
-      select: { employeeId: true, chequeAmount: true, canteenCharges: true, otDays: true },
+      select: { employeeId: true, chequeAmount: true, canteenCharges: true, otDays: true, otherAmount: true },
     }),
   ]);
 
@@ -159,11 +159,12 @@ export async function generatePayrollForPeriod(payrollPeriodId: string, userId: 
       advanceAmount,
       canteenCharges: existing ? toNum(existing.canteenCharges) : 0,
       otDays: existing ? toNum(existing.otDays) : 0,
+      otherAmount: existing ? toNum(existing.otherAmount) : 0,
       paidLeaveApplicable: employee.salaryConfig.paidLeaveApplicable,
       pfApplicable: employee.salaryConfig.pfApplicable,
       esiApplicable: employee.salaryConfig.esiApplicable,
       ptApplicable: employee.salaryConfig.ptApplicable,
-      bonusRule: ruleSet.bonusRule,
+      bonusRule: period.bonusEnabled ? ruleSet.bonusRule : null,
       pfRule: ruleSet.pfRule,
       esiRule: ruleSet.esiRule,
       ptSlabs: ruleSet.ptSlabs,
@@ -254,7 +255,7 @@ export async function recalculateSingleEmployeePayroll(payrollPeriodId: string, 
     computeAdvanceAmount(employeeId, payrollPeriodId, monthStart, monthEnd),
     prisma.payrollRecord.findUnique({
       where: { payrollPeriodId_employeeId: { payrollPeriodId, employeeId } },
-      select: { chequeAmount: true, canteenCharges: true, otDays: true },
+      select: { chequeAmount: true, canteenCharges: true, otDays: true, otherAmount: true },
     }),
   ]);
 
@@ -267,11 +268,12 @@ export async function recalculateSingleEmployeePayroll(payrollPeriodId: string, 
     advanceAmount,
     canteenCharges: existing ? toNum(existing.canteenCharges) : 0,
     otDays: existing ? toNum(existing.otDays) : 0,
+    otherAmount: existing ? toNum(existing.otherAmount) : 0,
     paidLeaveApplicable: employee.salaryConfig.paidLeaveApplicable,
     pfApplicable: employee.salaryConfig.pfApplicable,
     esiApplicable: employee.salaryConfig.esiApplicable,
     ptApplicable: employee.salaryConfig.ptApplicable,
-    bonusRule: ruleSet.bonusRule,
+    bonusRule: period.bonusEnabled ? ruleSet.bonusRule : null,
     pfRule: ruleSet.pfRule,
     esiRule: ruleSet.esiRule,
     ptSlabs: ruleSet.ptSlabs,
@@ -330,11 +332,13 @@ export async function recalculateSingleEmployeePayroll(payrollPeriodId: string, 
  */
 export async function updatePayrollExtras(
   payrollRecordId: string,
-  extras: { canteenCharges: number; otDays: number },
+  extras: { canteenCharges: number; otDays: number; otherAmount: number; bonus?: number },
   userId: string | null
 ) {
   if (extras.canteenCharges < 0) throw new ApiError(400, "Canteen charges cannot be negative");
   if (extras.otDays < 0) throw new ApiError(400, "OT days cannot be negative");
+  if (extras.otherAmount < 0) throw new ApiError(400, "Other amount cannot be negative");
+  if (extras.bonus !== undefined && extras.bonus < 0) throw new ApiError(400, "Bonus cannot be negative");
 
   const record = await prisma.payrollRecord.findUnique({
     where: { id: payrollRecordId },
@@ -346,7 +350,9 @@ export async function updatePayrollExtras(
   }
 
   const otAmount = computeOvertimeAmount(extras.otDays, toNum(record.dailyRate));
-  const totalEarnings = roundToNearest10(toNum(record.salaryAfterAbsence) + toNum(record.bonus) + otAmount);
+  const otherAmount = round2(extras.otherAmount);
+  const bonus = extras.bonus !== undefined ? round2(extras.bonus) : toNum(record.bonus);
+  const totalEarnings = roundToNearest10(toNum(record.salaryAfterAbsence) + bonus + otAmount + otherAmount);
   const totalDeductions = round2(
     toNum(record.esi) + toNum(record.pf) + toNum(record.pt) + toNum(record.advance) + extras.canteenCharges
   );
@@ -358,6 +364,8 @@ export async function updatePayrollExtras(
     data: {
       otDays: extras.otDays,
       otAmount,
+      otherAmount,
+      ...(extras.bonus !== undefined ? { bonus } : {}),
       canteenCharges: extras.canteenCharges,
       totalEarnings,
       totalDeductions,
@@ -413,6 +421,64 @@ export async function reopenPayrollPeriod(payrollPeriodId: string, userId: strin
     entityId: payrollPeriodId,
     newValue: { reason },
   });
+}
+
+export async function toggleBonusForPeriod(
+  payrollPeriodId: string,
+  enabled: boolean,
+  company: string,
+  userId: string | null
+) {
+  const period = await findPeriodOrThrow(payrollPeriodId);
+  if (period.status === "FINALIZED") {
+    throw new ApiError(409, "Payroll period is finalized. Reopen it before changing bonus.");
+  }
+
+  await prisma.payrollPeriod.update({ where: { id: payrollPeriodId }, data: { bonusEnabled: enabled } });
+
+  const records = await prisma.payrollRecord.findMany({
+    where: { payrollPeriodId, employee: { company } },
+    include: { employee: { include: { salaryConfig: true } } },
+  });
+
+  if (records.length === 0) return { updated: 0 };
+
+  let bonusAmount = 0;
+  if (enabled) {
+    const monthEnd = new Date(Date.UTC(period.year, period.month, 0));
+    const ruleSet = await loadRuleSet(monthEnd);
+    bonusAmount = ruleSet.bonusRule?.amount ?? 0;
+  }
+
+  const updates: Prisma.PrismaPromise<unknown>[] = [];
+  for (const record of records) {
+    const bonus = enabled && record.bonusEligible ? round2(bonusAmount) : 0;
+    const totalEarnings = roundToNearest10(
+      toNum(record.salaryAfterAbsence) + bonus + toNum(record.otAmount) + toNum(record.otherAmount)
+    );
+    const totalDeductions = toNum(record.totalDeductions);
+    const netSalary = roundToNearest10(totalEarnings - totalDeductions);
+    const { cashAmount, chequeAmount } = computePaymentSplit(netSalary, toNum(record.chequeAmount));
+
+    updates.push(
+      prisma.payrollRecord.update({
+        where: { id: record.id },
+        data: { bonus, totalEarnings, netSalary, cashAmount, chequeAmount },
+      })
+    );
+  }
+
+  await prisma.$transaction(updates);
+
+  writeAuditLog({
+    userId,
+    action: enabled ? "BONUS_ENABLED" : "BONUS_DISABLED",
+    entity: "PayrollPeriod",
+    entityId: payrollPeriodId,
+    newValue: { enabled, recordsUpdated: records.length },
+  });
+
+  return { updated: records.length };
 }
 
 export { computeCalendarBreakdown };

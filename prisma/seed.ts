@@ -165,7 +165,7 @@ async function main() {
     const record = await prisma.payrollRecord.findUnique({
       where: { payrollPeriodId_employeeId: { payrollPeriodId: period.id, employeeId: id } },
     });
-    if (record) await updatePayrollExtras(record.id, { canteenCharges: e.canteen, otDays: e.otDays }, null);
+    if (record) await updatePayrollExtras(record.id, { canteenCharges: e.canteen, otDays: e.otDays, otherAmount: 0 }, null);
   }
 
   console.log("Seed complete. Admin login: admin@veekay.com / Admin@123");

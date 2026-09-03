@@ -173,6 +173,7 @@ model PayrollPeriod {
   weeklyOffDays   Int
   holidayDays     Int
   calendarDays    Int
+  bonusEnabled    Boolean       @default(false)
   status          PayrollStatus @default(DRAFT)
   calendarVersion Int           @default(1)
   finalizedAt     DateTime?
@@ -315,6 +316,7 @@ model PayrollRecord {
   dailyRate             Decimal @db.Decimal(12, 2) @default(0)
   otDays                Decimal @db.Decimal(6, 2) @default(0)
   otAmount              Decimal @db.Decimal(12, 2) @default(0)
+  otherAmount           Decimal @db.Decimal(12, 2) @default(0)
 
   totalEarnings         Decimal @db.Decimal(12, 2)
 

@@ -35,6 +35,7 @@ interface PayrollRecordRow {
   bonus: string;
   otDays: string;
   otAmount: string;
+  otherAmount: string;
   totalEarnings: string;
   pf: string;
   esi: string;
@@ -57,6 +58,7 @@ function chunkArray<T>(arr: T[], size: number): T[][] {
 
 function PayslipCard({ record, monthLabel }: { record: PayrollRecordRow; monthLabel: string }) {
   const hasOt = Number(record.otAmount) > 0 || Number(record.otDays) > 0;
+  const hasOther = Number(record.otherAmount) > 0;
   const hasCanteen = Number(record.canteenCharges) > 0;
   // Only show the cash/cheque split when part of the salary is actually paid
   // by cheque; otherwise Net Salary alone already says it's fully cash.
@@ -139,6 +141,12 @@ function PayslipCard({ record, monthLabel }: { record: PayrollRecordRow; monthLa
               <div className="flex justify-between text-slate-600">
                 <span>OT / Late Hours</span>
                 <span className="font-medium text-slate-900">{formatCurrencyINR(record.otAmount)}</span>
+              </div>
+            )}
+            {hasOther && (
+              <div className="flex justify-between text-slate-600">
+                <span>Other Amount</span>
+                <span className="font-medium text-slate-900">{formatCurrencyINR(record.otherAmount)}</span>
               </div>
             )}
             <div className="flex justify-between text-slate-600">
