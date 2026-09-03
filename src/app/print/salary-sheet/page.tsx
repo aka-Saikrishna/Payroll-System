@@ -189,7 +189,7 @@ function PayslipCard({ record, monthLabel }: { record: PayrollRecordRow; monthLa
 
       {/* Net Salary at Bottom */}
       <div className="mt-auto">
-        <div className="border-t-2 border-slate-900 pt-2 flex justify-between items-center">
+        <div className="border-t border-slate-300 pt-2 flex justify-between items-center">
           <span className="font-bold text-[11px] uppercase tracking-wide text-slate-900">NET SALARY</span>
           <span className="font-extrabold text-[13px] text-slate-900">{formatCurrencyINR(record.netSalary)}</span>
         </div>
@@ -350,6 +350,10 @@ function PrintSalarySheetContent() {
             padding: 0 !important;
             margin: 0 !important;
             max-width: 100% !important;
+            gap: 0 !important;
+          }
+          .payslip-container > * + * {
+            margin-top: 0 !important;
           }
           .payslip-sheet-wrapper {
             margin: 0 !important;
@@ -374,10 +378,11 @@ function PrintSalarySheetContent() {
             grid-template-columns: repeat(3, 1fr) !important;
             gap: 3mm !important;
             box-sizing: border-box !important;
+            overflow: hidden !important;
           }
           .payslip-col {
-            border: 0.5px solid #94a3b8 !important;
-            border-radius: 1px !important;
+            border: none !important;
+            border-radius: 0 !important;
             padding: 2mm 3mm !important;
             height: 100% !important;
             box-sizing: border-box !important;
