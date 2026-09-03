@@ -540,15 +540,32 @@ export default function SalarySheetsPage() {
 
   const totals = records.reduce(
     (acc, r) => ({
-      rateOfPay: acc.rateOfPay + Number(r.monthlySalary),
+      basic: acc.basic + Number(r.basicSalary),
+      hra: acc.hra + Number(r.hra),
+      conveyance: acc.conveyance + Number(r.conveyance),
+      otherSalary: acc.otherSalary + Number(r.otherAmount),
+      // Mirrors the row's Total cell, which shows monthlySalary + otherAmount.
+      rateOfPay: acc.rateOfPay + Number(r.monthlySalary) + Number(r.otherAmount),
       salary: acc.salary + Number(r.salaryAfterAbsence),
+      bonus: acc.bonus + Number(r.bonus),
+      otAmount: acc.otAmount + Number(r.otAmount),
       earnings: acc.earnings + Number(r.totalEarnings),
+      pf: acc.pf + Number(r.pf),
+      esi: acc.esi + Number(r.esi),
+      pt: acc.pt + Number(r.pt),
+      advance: acc.advance + Number(r.advance),
+      canteen: acc.canteen + Number(r.canteenCharges),
       deductions: acc.deductions + Number(r.totalDeductions),
       net: acc.net + Number(r.netSalary),
       cash: acc.cash + Number(r.cashAmount),
       cheque: acc.cheque + Number(r.chequeAmount),
     }),
-    { rateOfPay: 0, salary: 0, earnings: 0, deductions: 0, net: 0, cash: 0, cheque: 0 }
+    {
+      basic: 0, hra: 0, conveyance: 0, otherSalary: 0, rateOfPay: 0,
+      salary: 0, bonus: 0, otAmount: 0, earnings: 0,
+      pf: 0, esi: 0, pt: 0, advance: 0, canteen: 0, deductions: 0,
+      net: 0, cash: 0, cheque: 0,
+    }
   );
 
   return (
@@ -692,7 +709,7 @@ export default function SalarySheetsPage() {
                 <th colSpan={5} className="sticky top-0 z-[8] text-center border-l border-navy-200 !bg-white">
                   Earned Salary
                 </th>
-                <th colSpan={7} className="sticky top-0 z-[8] text-center border-l border-navy-200 !bg-white">
+                <th colSpan={6} className="sticky top-0 z-[8] text-center border-l border-navy-200 !bg-white">
                   Deductions
                 </th>
                 <th rowSpan={2} className="sticky top-0 z-[8] border-l border-navy-200 !bg-white">
@@ -753,16 +770,31 @@ export default function SalarySheetsPage() {
             </tbody>
             <tfoot>
               <tr className="font-semibold bg-navy-50/60">
-                <td colSpan={7} className="text-right pr-3">
+                <td colSpan={3} className="sticky left-0 z-[6] text-right pr-3 !bg-navy-50 border-r border-navy-200">
                   Totals
                 </td>
+                {/* Rate of Pay */}
+                <td>{formatCurrencyINR(totals.basic)}</td>
+                <td>{formatCurrencyINR(totals.hra)}</td>
+                <td>{formatCurrencyINR(totals.conveyance)}</td>
+                <td>{formatCurrencyINR(totals.otherSalary)}</td>
                 <td>{formatCurrencyINR(totals.rateOfPay)}</td>
+                {/* Attendance — day counts, not amounts */}
                 <td colSpan={7}></td>
+                {/* Earned Salary */}
                 <td>{formatCurrencyINR(totals.salary)}</td>
-                <td colSpan={3}></td>
+                <td>{formatCurrencyINR(totals.bonus)}</td>
+                <td></td>
+                <td>{formatCurrencyINR(totals.otAmount)}</td>
                 <td>{formatCurrencyINR(totals.earnings)}</td>
-                <td colSpan={6}></td>
+                {/* Deductions */}
+                <td>{formatCurrencyINR(totals.pf)}</td>
+                <td>{formatCurrencyINR(totals.esi)}</td>
+                <td>{formatCurrencyINR(totals.pt)}</td>
+                <td>{formatCurrencyINR(totals.advance)}</td>
+                <td>{formatCurrencyINR(totals.canteen)}</td>
                 <td>{formatCurrencyINR(totals.deductions)}</td>
+                {/* Net + Payment */}
                 <td>{formatCurrencyINR(totals.net)}</td>
                 <td>{formatCurrencyINR(totals.cash)}</td>
                 <td>{formatCurrencyINR(totals.cheque)}</td>
