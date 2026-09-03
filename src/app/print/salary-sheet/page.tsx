@@ -106,10 +106,6 @@ function PayslipCard({ record, monthLabel }: { record: PayrollRecordRow; monthLa
               <span className="font-medium text-slate-900">{record.paidLeave}</span>
             </div>
             <div className="flex justify-between text-slate-600">
-              <span>Paid Leave Used</span>
-              <span className="font-medium text-slate-900">{record.paidLeaveUsed}</span>
-            </div>
-            <div className="flex justify-between text-slate-600">
               <span>Deductible Absent Days</span>
               <span className="font-medium text-slate-900">{record.deductibleAbsentDays}</span>
             </div>

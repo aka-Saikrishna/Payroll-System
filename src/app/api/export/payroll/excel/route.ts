@@ -15,12 +15,17 @@ export async function GET(request: NextRequest) {
     const period = await prisma.payrollPeriod.findUnique({ where: { id: periodId } });
     if (!period) throw new ApiError(404, "Payroll period not found");
 
+    const company = request.nextUrl.searchParams.get("company") || "VPPL";
     const employeeIdsParam = request.nextUrl.searchParams.get("employeeIds")?.trim();
     const employeeIds = employeeIdsParam ? employeeIdsParam.split(",").filter(Boolean) : null;
 
     const [records, settings] = await Promise.all([
       prisma.payrollRecord.findMany({
-        where: { payrollPeriodId: periodId, ...(employeeIds ? { employeeId: { in: employeeIds } } : {}) },
+        where: {
+          payrollPeriodId: periodId,
+          employee: { company },
+          ...(employeeIds ? { employeeId: { in: employeeIds } } : {}),
+        },
         include: { employee: true },
         orderBy: { employee: { employeeCode: "asc" } },
       }),
