@@ -151,8 +151,8 @@ export interface EsiRuleConfig {
 
 export function computeEsi(rule: EsiRuleConfig | null, applicable: boolean, wageBase: number): number {
   if (!applicable || !rule || !rule.enabled) return 0;
-  if (rule.wageCeiling != null && wageBase > rule.wageCeiling) return 0; // ESI eligibility typically caps out entirely above ceiling
-  return round2(wageBase * (rule.ratePercent / 100));
+  if (rule.wageCeiling != null && wageBase > rule.wageCeiling) return 0;
+  return Math.ceil(wageBase * (rule.ratePercent / 100));
 }
 
 export interface PtSlabConfig {
