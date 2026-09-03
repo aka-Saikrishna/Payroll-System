@@ -58,11 +58,16 @@ function chunkArray<T>(arr: T[], size: number): T[][] {
 
 function PayslipCard({ record, monthLabel }: { record: PayrollRecordRow; monthLabel: string }) {
   const hasOt = Number(record.otAmount) > 0 || Number(record.otDays) > 0;
-  const hasOther = Number(record.otherAmount) > 0;
   const hasCanteen = Number(record.canteenCharges) > 0;
-  // Only show the cash/cheque split when part of the salary is actually paid
-  // by cheque; otherwise Net Salary alone already says it's fully cash.
   const hasChequePayment = Number(record.chequeAmount) > 0;
+
+  const otherAmt = Number(record.otherAmount);
+  const proratedOther = record.workingDays > 0
+    ? Math.round((otherAmt / record.workingDays) * record.payableDays * 100) / 100
+    : otherAmt;
+  const displayTotalSalary = Number(record.monthlySalary) + otherAmt;
+  const displayAbsenceDeduction = Number(record.absenceDeduction) + (otherAmt - proratedOther);
+  const displaySalaryAfterAbsence = Number(record.salaryAfterAbsence) + proratedOther;
 
   return (
     <div className="payslip-col flex flex-col justify-between p-3.5 bg-white border border-slate-400 rounded-sm text-slate-800 text-[11px]">
@@ -123,15 +128,15 @@ function PayslipCard({ record, monthLabel }: { record: PayrollRecordRow; monthLa
           <div className="space-y-0.5">
             <div className="flex justify-between text-slate-600">
               <span>Total Salary</span>
-              <span className="font-medium text-slate-900">{formatCurrencyINR(record.monthlySalary)}</span>
+              <span className="font-medium text-slate-900">{formatCurrencyINR(displayTotalSalary)}</span>
             </div>
             <div className="flex justify-between text-slate-600">
               <span>Absence Deduction</span>
-              <span className="font-medium text-slate-900">{formatCurrencyINR(record.absenceDeduction)}</span>
+              <span className="font-medium text-slate-900">{formatCurrencyINR(displayAbsenceDeduction)}</span>
             </div>
             <div className="flex justify-between text-slate-600">
               <span>Salary After Absence</span>
-              <span className="font-medium text-slate-900">{formatCurrencyINR(record.salaryAfterAbsence)}</span>
+              <span className="font-medium text-slate-900">{formatCurrencyINR(displaySalaryAfterAbsence)}</span>
             </div>
             <div className="flex justify-between text-slate-600">
               <span>Full Attendance Bonus</span>
@@ -141,12 +146,6 @@ function PayslipCard({ record, monthLabel }: { record: PayrollRecordRow; monthLa
               <div className="flex justify-between text-slate-600">
                 <span>OT / Late Hours</span>
                 <span className="font-medium text-slate-900">{formatCurrencyINR(record.otAmount)}</span>
-              </div>
-            )}
-            {hasOther && (
-              <div className="flex justify-between text-slate-600">
-                <span>Other Amount</span>
-                <span className="font-medium text-slate-900">{formatCurrencyINR(record.otherAmount)}</span>
               </div>
             )}
             <div className="flex justify-between text-slate-600">
