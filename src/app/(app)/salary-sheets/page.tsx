@@ -244,7 +244,14 @@ function SalarySheetRow({
         <ReadCell value={formatCurrencyINR(record.conveyance)} />
       </td>
       <td>
-        <ReadCell value={formatCurrencyINR(record.monthlySalary)} emphasis />
+        <EditableAmount
+          value={Number(record.otherAmount)}
+          disabled={disabled}
+          onCommit={(n) => mutExtras.mutate({ canteenCharges: Number(record.canteenCharges), otDays: Number(record.otDays), otherAmount: n })}
+        />
+      </td>
+      <td>
+        <ReadCell value={formatCurrencyINR(Number(record.monthlySalary) + Number(record.otherAmount))} emphasis />
       </td>
 
       {/* Attendance */}
@@ -296,13 +303,6 @@ function SalarySheetRow({
       </td>
       <td>
         <ReadCell value={formatCurrencyINR(record.otAmount)} />
-      </td>
-      <td>
-        <EditableAmount
-          value={Number(record.otherAmount)}
-          disabled={disabled}
-          onCommit={(n) => mutExtras.mutate({ canteenCharges: Number(record.canteenCharges), otDays: Number(record.otDays), otherAmount: n })}
-        />
       </td>
       <td>
         <ReadCell value={formatCurrencyINR(record.totalEarnings)} emphasis />
@@ -644,7 +644,7 @@ export default function SalarySheetsPage() {
       )}
       {!isFinalized && (
         <div className="shrink-0 rounded-md bg-navy-50 text-navy-600 text-xs px-3 py-2">
-          OT Days, Other Amount, Advance, Canteen Charges and Cheque Amount are editable directly in the cell below —
+          Other Salary, OT Days, Canteen Charges and Cheque Amount are editable directly in the cell below —
           click in, type, and tab or click away to save. Attendance is managed from the Attendance page. Basic Salary,
           HRA and Conveyance are edited from the Employees page. Statutory figures (PF, ESI, PT) and totals are
           calculated automatically.
@@ -685,13 +685,13 @@ export default function SalarySheetsPage() {
                 >
                   Employee Name
                 </th>
-                <th colSpan={4} className="sticky top-0 z-[8] text-center border-l border-navy-200 !bg-white">
+                <th colSpan={5} className="sticky top-0 z-[8] text-center border-l border-navy-200 !bg-white">
                   Rate of Pay
                 </th>
                 <th colSpan={7} className="sticky top-0 z-[8] text-center border-l border-navy-200 !bg-white">
                   Attendance
                 </th>
-                <th colSpan={6} className="sticky top-0 z-[8] text-center border-l border-navy-200 !bg-white">
+                <th colSpan={5} className="sticky top-0 z-[8] text-center border-l border-navy-200 !bg-white">
                   Earned Salary
                 </th>
                 <th colSpan={7} className="sticky top-0 z-[8] text-center border-l border-navy-200 !bg-white">
@@ -711,6 +711,7 @@ export default function SalarySheetsPage() {
                 <th className="sticky top-[33px] z-[8] border-l border-navy-200 !bg-white">Basic Salary</th>
                 <th className="sticky top-[33px] z-[8] !bg-white">HRA</th>
                 <th className="sticky top-[33px] z-[8] !bg-white">Conveyance</th>
+                <th className="sticky top-[33px] z-[8] !bg-white">Other Salary</th>
                 <th className="sticky top-[33px] z-[8] !bg-white">Total</th>
                 <th className="sticky top-[33px] z-[8] border-l border-navy-200 !bg-white">Working Days</th>
                 <th className="sticky top-[33px] z-[8] !bg-white">Present Days</th>
@@ -723,7 +724,6 @@ export default function SalarySheetsPage() {
                 <th className="sticky top-[33px] z-[8] !bg-white">Bonus</th>
                 <th className="sticky top-[33px] z-[8] !bg-white">OT Days</th>
                 <th className="sticky top-[33px] z-[8] !bg-white">OT Amount</th>
-                <th className="sticky top-[33px] z-[8] !bg-white">Other Amt</th>
                 <th className="sticky top-[33px] z-[8] !bg-white">Total Earnings</th>
                 <th className="sticky top-[33px] z-[8] border-l border-navy-200 !bg-white">PF</th>
                 <th className="sticky top-[33px] z-[8] !bg-white">ESI</th>
@@ -755,13 +755,13 @@ export default function SalarySheetsPage() {
             </tbody>
             <tfoot>
               <tr className="font-semibold bg-navy-50/60">
-                <td colSpan={6} className="text-right pr-3">
+                <td colSpan={7} className="text-right pr-3">
                   Totals
                 </td>
                 <td>{formatCurrencyINR(totals.rateOfPay)}</td>
                 <td colSpan={7}></td>
                 <td>{formatCurrencyINR(totals.salary)}</td>
-                <td colSpan={4}></td>
+                <td colSpan={3}></td>
                 <td>{formatCurrencyINR(totals.earnings)}</td>
                 <td colSpan={6}></td>
                 <td>{formatCurrencyINR(totals.deductions)}</td>

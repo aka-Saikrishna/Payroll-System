@@ -72,6 +72,12 @@ export default function SalarySheetDetailPage() {
     const remainder = ((Math.round(raw) % 10) + 10) % 10;
     return remainder < 5 ? Math.round(raw) - remainder : Math.round(raw) + (10 - remainder);
   })();
+  const proratedOther = r.workingDays > 0
+    ? Math.round((otherAmount / r.workingDays) * r.payableDays * 100) / 100
+    : otherAmount;
+  const displayTotalSalary = Number(r.monthlySalary) + otherAmount;
+  const displayAbsenceDeduction = Number(r.absenceDeduction) + (otherAmount - proratedOther);
+  const displaySalaryAfterAbsence = Number(r.salaryAfterAbsence) + proratedOther;
   const isExtrasDirty = canteenCharges !== Number(r.canteenCharges) || otDays !== Number(r.otDays) || otherAmount !== Number(r.otherAmount);
 
   function handleToggleSplit(checked: boolean) {
@@ -153,12 +159,22 @@ export default function SalarySheetDetailPage() {
             <Row label="Basic Salary" value={<CurrencyDisplay value={r.basicSalary} />} />
             <Row label="HRA" value={<CurrencyDisplay value={r.hra} />} />
             <Row label="Conveyance" value={<CurrencyDisplay value={r.conveyance} />} />
-            <Row label="Total Salary" value={<CurrencyDisplay value={r.monthlySalary} />} emphasis />
-            <Row label="Absence Deduction" value={<CurrencyDisplay value={r.absenceDeduction} />} />
-            <Row label="Salary After Absence" value={<CurrencyDisplay value={r.salaryAfterAbsence} />} />
+            <div className="flex items-center justify-between py-1.5 text-navy-700">
+              <span className="text-sm">Other Salary</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                className="input py-0.5 px-1.5 text-sm text-right w-28"
+                value={otherAmountInput}
+                disabled={isFinalized}
+                onChange={(e) => setOtherAmountInput(e.target.value)}
+              />
+            </div>
+            <Row label="Total Salary" value={<CurrencyDisplay value={displayTotalSalary} />} emphasis />
+            <Row label="Absence Deduction" value={<CurrencyDisplay value={displayAbsenceDeduction} />} />
+            <Row label="Salary After Absence" value={<CurrencyDisplay value={displaySalaryAfterAbsence} />} />
             <Row label="Full Attendance Bonus" value={<CurrencyDisplay value={r.bonus} />} />
             <Row label="OT / Late Hours Amount" value={<CurrencyDisplay value={r.otAmount} />} />
-            <Row label="Other Amount" value={<CurrencyDisplay value={r.otherAmount} />} />
             <Row label="Total Earnings" value={<CurrencyDisplay value={r.totalEarnings} />} emphasis />
           </div>
         </div>
@@ -185,9 +201,9 @@ export default function SalarySheetDetailPage() {
         </div>
 
         <div className="mt-5 pt-4 border-t border-navy-100">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-navy-500 mb-2">Canteen Charges, OT / Late Hours & Other Amount</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-navy-500 mb-2">Canteen Charges & OT / Late Hours</h3>
           {extrasError && <div className="rounded-md bg-danger-50 text-danger-700 text-sm px-3 py-2 mb-3">{extrasError}</div>}
-          <div className="grid grid-cols-3 gap-x-6">
+          <div className="grid grid-cols-2 gap-x-6">
             <div>
               <label className="label">Canteen Charges</label>
               <input
@@ -208,17 +224,6 @@ export default function SalarySheetDetailPage() {
                 value={otDaysInput}
                 disabled={isFinalized}
                 onChange={(e) => setOtDaysInput(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="label">Other Amount</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                className="input"
-                value={otherAmountInput}
-                disabled={isFinalized}
-                onChange={(e) => setOtherAmountInput(e.target.value)}
               />
             </div>
           </div>
