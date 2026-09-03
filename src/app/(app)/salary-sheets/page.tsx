@@ -647,14 +647,7 @@ export default function SalarySheetsPage() {
           any figure again.
         </div>
       )}
-      {!isFinalized && (
-        <div className="shrink-0 rounded-md bg-navy-50 text-navy-600 text-xs px-3 py-2">
-          Other Salary, OT Days, Canteen Charges and Cheque Amount are editable directly in the cell below —
-          click in, type, and tab or click away to save. Attendance is managed from the Attendance page. Basic Salary,
-          HRA and Conveyance are edited from the Employees page. Statutory figures (PF, ESI, PT) and totals are
-          calculated automatically.
-        </div>
-      )}
+    
 
       {periodLoading || recordsLoading ? (
         <div className="card p-8 text-center text-sm text-navy-400">Loading salary sheet...</div>
