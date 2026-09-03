@@ -567,7 +567,6 @@ export default function SalarySheetsPage() {
             <Link
               href={`/print/salary-sheet?periodId=${periodId}${companyQuery}${employeeIdsQuery}`}
               className="btn-secondary"
-              target="_blank"
             >
               <PrintIcon /> Print Salary Sheet{someSelected ? ` (${selectedIds.size})` : ""}
             </Link>

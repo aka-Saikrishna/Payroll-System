@@ -248,18 +248,7 @@ function PrintSalarySheetContent() {
   });
 
   const handleBack = () => {
-    if (typeof window === "undefined") return;
-
-    // This page is normally opened in a new tab. history.length is unreliable
-    // here (the new tab can inherit unrelated entries), so never use
-    // router.back() — it would walk back to something that isn't the salary
-    // sheet. Try to close the tab only when it was genuinely script-opened,
-    // and always fall back to navigating to the salary sheet, since browsers
-    // silently block close() for tabs the script didn't open.
-    if (window.opener) {
-      window.close();
-    }
-    router.push("/salary-sheets");
+    router.back();
   };
 
   if (!periodId) return <div className="p-8 text-sm text-navy-500">No payroll period selected.</div>;
