@@ -15,10 +15,20 @@ export async function GET(request: NextRequest) {
 
     const company = searchParams.get("company")?.trim() || "VPPL";
 
+    // A finalized period is a record of what was actually paid, so it keeps
+    // showing employees who have since been deactivated. Periods still open
+    // for editing show only the current active roster.
+    const period = await prisma.payrollPeriod.findUnique({
+      where: { id: periodId },
+      select: { status: true },
+    });
+    const isFinalized = period?.status === "FINALIZED";
+
     const where: Prisma.PayrollRecordWhereInput = {
       payrollPeriodId: periodId,
       employee: {
         company,
+        ...(isFinalized ? {} : { status: "ACTIVE" }),
         ...(employeeIds ? { id: { in: employeeIds } } : {}),
         ...(search
           ? {

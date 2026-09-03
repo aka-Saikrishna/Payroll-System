@@ -221,6 +221,13 @@ export async function generatePayrollForPeriod(payrollPeriodId: string, userId: 
     processed++;
   }
 
+  // Employees deactivated after a previous run still have a record on this
+  // period; the upserts above only cover the active roster, so clear them out.
+  upserts.push(
+    prisma.payrollRecord.deleteMany({
+      where: { payrollPeriodId, employee: { status: "INACTIVE", company } },
+    })
+  );
   upserts.push(prisma.payrollPeriod.update({ where: { id: payrollPeriodId }, data: { status: "REVIEW" } }));
   await prisma.$transaction(upserts);
 
@@ -399,6 +406,10 @@ export async function finalizePayrollPeriod(payrollPeriodId: string, userId: str
   if (period.status === "FINALIZED") throw new ApiError(409, "Already finalized");
 
   await prisma.$transaction([
+    // Deactivated employees are hidden from an open sheet but their row may
+    // still exist. Clear it before locking, otherwise finalizing would bring
+    // them back into a period that is no longer filtered.
+    prisma.payrollRecord.deleteMany({ where: { payrollPeriodId, employee: { status: "INACTIVE" } } }),
     prisma.payrollRecord.updateMany({ where: { payrollPeriodId }, data: { status: "FINALIZED" } }),
     prisma.payrollPeriod.update({
       where: { id: payrollPeriodId },

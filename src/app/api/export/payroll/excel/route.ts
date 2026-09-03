@@ -23,7 +23,9 @@ export async function GET(request: NextRequest) {
       prisma.payrollRecord.findMany({
         where: {
           payrollPeriodId: periodId,
-          employee: { company },
+          // Matches the salary sheet: a finalized period keeps deactivated
+          // employees (that is what was paid), an open one shows only active.
+          employee: { company, ...(period.status === "FINALIZED" ? {} : { status: "ACTIVE" }) },
           ...(employeeIds ? { employeeId: { in: employeeIds } } : {}),
         },
         include: { employee: true },
