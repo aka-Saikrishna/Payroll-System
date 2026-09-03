@@ -172,7 +172,10 @@ function SalarySheetRow({
       const prev = queryClient.getQueryData(recordsQueryKey);
       const otAmount = r10(vals.otDays * Number(record.dailyRate));
       const bonus = vals.bonus !== undefined ? vals.bonus : Number(record.bonus);
-      const totalEarnings = r10(Number(record.salaryAfterAbsence) + bonus + otAmount + vals.otherAmount);
+      const proratedOther = record.workingDays > 0
+        ? r2((vals.otherAmount / record.workingDays) * record.payableDays)
+        : vals.otherAmount;
+      const totalEarnings = r10(Number(record.salaryAfterAbsence) + bonus + otAmount + proratedOther);
       const totalDeductions = r2(Number(record.pf) + Number(record.esi) + Number(record.pt) + Number(record.advance) + vals.canteenCharges);
       const netSalary = r10(totalEarnings - totalDeductions);
       const cheque = r2(Math.min(Math.max(Number(record.chequeAmount), 0), Math.max(netSalary, 0)));

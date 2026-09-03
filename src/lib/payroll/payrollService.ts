@@ -288,6 +288,7 @@ export async function recalculateSingleEmployeePayroll(payrollPeriodId: string, 
     monthlySalary: employee.salaryConfig.monthlySalary,
   };
 
+  const rawOtherAmount = existing ? toNum(existing.otherAmount) : 0;
   const record = await prisma.payrollRecord.upsert({
     where: { payrollPeriodId_employeeId: { payrollPeriodId, employeeId } },
     create: {
@@ -295,6 +296,7 @@ export async function recalculateSingleEmployeePayroll(payrollPeriodId: string, 
       employeeId,
       ...salarySnapshot,
       ...result,
+      otherAmount: rawOtherAmount,
       cashAmount,
       chequeAmount,
       appliedPfRateId: ruleSet.pfRule?.id ?? null,
@@ -305,6 +307,7 @@ export async function recalculateSingleEmployeePayroll(payrollPeriodId: string, 
     update: {
       ...salarySnapshot,
       ...result,
+      otherAmount: rawOtherAmount,
       cashAmount,
       chequeAmount,
       appliedPfRateId: ruleSet.pfRule?.id ?? null,
@@ -350,7 +353,11 @@ export async function updatePayrollExtras(
   }
 
   const otAmount = computeOvertimeAmount(extras.otDays, toNum(record.dailyRate));
-  const otherAmount = round2(extras.otherAmount);
+  const workingDays = record.workingDays;
+  const payableDays = record.payableDays;
+  const otherAmount = workingDays > 0
+    ? round2((extras.otherAmount / workingDays) * payableDays)
+    : round2(extras.otherAmount);
   const bonus = extras.bonus !== undefined ? round2(extras.bonus) : toNum(record.bonus);
   const totalEarnings = roundToNearest10(toNum(record.salaryAfterAbsence) + bonus + otAmount + otherAmount);
   const totalDeductions = round2(
@@ -364,7 +371,7 @@ export async function updatePayrollExtras(
     data: {
       otDays: extras.otDays,
       otAmount,
-      otherAmount,
+      otherAmount: extras.otherAmount,
       ...(extras.bonus !== undefined ? { bonus } : {}),
       canteenCharges: extras.canteenCharges,
       totalEarnings,
@@ -453,8 +460,12 @@ export async function toggleBonusForPeriod(
   const updates: Prisma.PrismaPromise<unknown>[] = [];
   for (const record of records) {
     const bonus = enabled && record.bonusEligible ? round2(bonusAmount) : 0;
+    const rawOther = toNum(record.otherAmount);
+    const proratedOther = record.workingDays > 0
+      ? round2((rawOther / record.workingDays) * record.payableDays)
+      : rawOther;
     const totalEarnings = roundToNearest10(
-      toNum(record.salaryAfterAbsence) + bonus + toNum(record.otAmount) + toNum(record.otherAmount)
+      toNum(record.salaryAfterAbsence) + bonus + toNum(record.otAmount) + proratedOther
     );
     const totalDeductions = toNum(record.totalDeductions);
     const netSalary = roundToNearest10(totalEarnings - totalDeductions);

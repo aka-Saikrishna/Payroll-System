@@ -440,6 +440,58 @@ describe("calculateEmployeePayroll — end to end (spec sample payroll flow, sec
     expect(r.netSalary).toBe(20000 - 1000);
   });
 
+  it("otherAmount is prorated by payable days / working days", () => {
+    const r = calculateEmployeePayroll({
+      basicSalary: 20000,
+      monthlySalary: 20000,
+      workingDays: 25,
+      presentDays: 22,
+      actualAbsentDays: 3,
+      advanceAmount: 0,
+      paidLeaveApplicable: true,
+      canteenCharges: 0,
+      otDays: 0,
+      otherAmount: 1000,
+      pfApplicable: false,
+      esiApplicable: false,
+      ptApplicable: false,
+      bonusRule: null,
+      pfRule: null,
+      esiRule: null,
+      ptSlabs: [],
+    });
+    // 3 actual absences, 1 covered by paid leave, 2 deductible -> payableDays = 23
+    expect(r.payableDays).toBe(23);
+    // otherAmount prorated: 1000 / 25 * 23 = 920
+    expect(r.otherAmount).toBe(920);
+    // totalEarnings = salaryAfterAbsence(18400) + 920 = 19320 -> r10 = 19320
+    expect(r.totalEarnings).toBe(19320);
+  });
+
+  it("otherAmount full when no absences", () => {
+    const r = calculateEmployeePayroll({
+      basicSalary: 20000,
+      monthlySalary: 20000,
+      workingDays: 25,
+      presentDays: 25,
+      actualAbsentDays: 0,
+      advanceAmount: 0,
+      paidLeaveApplicable: true,
+      canteenCharges: 0,
+      otDays: 0,
+      otherAmount: 500,
+      pfApplicable: false,
+      esiApplicable: false,
+      ptApplicable: false,
+      bonusRule: null,
+      pfRule: null,
+      esiRule: null,
+      ptSlabs: [],
+    });
+    expect(r.otherAmount).toBe(500);
+    expect(r.totalEarnings).toBe(20500);
+  });
+
   it("rejects negative advance", () => {
     expect(() =>
       calculateEmployeePayroll({

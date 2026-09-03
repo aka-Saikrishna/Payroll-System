@@ -265,7 +265,9 @@ export function calculateEmployeePayroll(input: EmployeePayrollInput): EmployeeP
   const dailyRate = computeDailyRate(input.monthlySalary, input.workingDays);
   const otAmount = computeOvertimeAmount(input.otDays, dailyRate);
 
-  const otherAmount = round2(input.otherAmount);
+  const otherAmount = input.workingDays > 0
+    ? round2((input.otherAmount / input.workingDays) * payableDays)
+    : round2(input.otherAmount);
   const totalEarnings = roundToNearest10(salaryAfterAbsence + bonus + otAmount + otherAmount);
 
   // PF is levied on Basic Salary prorated by days present (see computePf).
