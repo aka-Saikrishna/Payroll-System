@@ -111,7 +111,7 @@ export default function EmployeesPage() {
   const employees: EmployeeRow[] = data?.employees || [];
 
   return (
-    <div className="space-y-4 max-w-6xl">
+    <div className="flex flex-col h-full gap-4 max-w-6xl">
       <Toolbar search={search} onSearchChange={setSearch} searchPlaceholder="Search by name...">
         <ImportPanel
           title="Import Employees"
@@ -146,8 +146,8 @@ export default function EmployeesPage() {
           }
         />
       ) : (
-        <div className="card overflow-hidden">
-          <table className="table-base">
+        <div className="card scroll-thick flex-1 min-h-0 overflow-auto">
+          <table className="table-base table-sticky-head">
             <thead>
               <tr>
                 <th>S.No</th>

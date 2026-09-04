@@ -75,17 +75,21 @@ export default function ReportsPage() {
   );
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
+    <div className="flex flex-col h-full gap-4">
+      <div className="shrink-0 flex items-center justify-between flex-wrap gap-3">
         <PeriodPicker year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m); }} />
         {periodId && (
-          <a href={`/api/export/payroll/excel?periodId=${periodId}`} className="btn-secondary" download>
+          <a
+            href={`/api/export/payroll/excel?periodId=${periodId}&company=${company.code}`}
+            className="btn-secondary"
+            download
+          >
             <DownloadIcon /> Export Excel
           </a>
         )}
       </div>
 
-      <div className="flex gap-1 border-b border-navy-100 overflow-x-auto">
+      <div className="shrink-0 flex gap-1 border-b border-navy-100 overflow-x-auto">
         {REPORT_TABS.map((t) => (
           <button
             key={t.key}
@@ -100,7 +104,7 @@ export default function ReportsPage() {
       </div>
 
       <input
-        className="input max-w-xs"
+        className="shrink-0 input max-w-xs"
         placeholder="Search by employee..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
@@ -111,8 +115,8 @@ export default function ReportsPage() {
       ) : records.length === 0 ? (
         <EmptyState title="No data for this period." description="Generate payroll for this month first." />
       ) : (
-        <div className="card overflow-x-auto">
-          <table className="table-base">
+        <div className="card scroll-thick flex-1 min-h-0 overflow-auto">
+          <table className="table-base table-sticky-head">
             <thead>
               <tr>
                 <th>Employee</th>

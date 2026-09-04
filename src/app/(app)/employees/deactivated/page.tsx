@@ -71,8 +71,8 @@ export default function DeactivatedEmployeesPage() {
   const employees: EmployeeRow[] = data?.employees || [];
 
   return (
-    <div className="space-y-4 max-w-6xl">
-      <p className="text-sm text-navy-500">
+    <div className="flex flex-col h-full gap-4 max-w-6xl">
+      <p className="shrink-0 text-sm text-navy-500">
         Deactivated employees are hidden from the active roster and excluded from future payroll runs, but their
         records and payroll history are preserved. Activate an employee here to bring them back onto the active list.
       </p>
@@ -87,8 +87,8 @@ export default function DeactivatedEmployeesPage() {
           description={debouncedSearch ? "Try a different search term." : "Employees you deactivate will show up here."}
         />
       ) : (
-        <div className="card overflow-hidden">
-          <table className="table-base">
+        <div className="card scroll-thick flex-1 min-h-0 overflow-auto">
+          <table className="table-base table-sticky-head">
             <thead>
               <tr>
                 <th>S.No</th>

@@ -153,8 +153,8 @@ export default function AttendancePage() {
   const rows: AttendanceRow[] = data?.rows || [];
 
   return (
-    <div className="space-y-4 max-w-6xl">
-      <div className="flex items-center justify-between flex-wrap gap-3">
+    <div className="flex flex-col h-full gap-4 max-w-6xl">
+      <div className="shrink-0 flex items-center justify-between flex-wrap gap-3">
         <PeriodPicker year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m); }} />
         <a
           href={`/api/export/attendance/excel?year=${year}&month=${month}&company=${company.code}`}
@@ -165,23 +165,25 @@ export default function AttendancePage() {
         </a>
       </div>
       {data?.period && (
-        <div className="text-xs text-navy-500">
+        <div className="shrink-0 text-xs text-navy-500">
           Working Days: <span className="font-semibold text-navy-800">{data.period.workingDays}</span>{" "}
           (total calendar days in the month) · Weekly Off {data.period.weeklyOffDays} · Holidays{" "}
           {data.period.holidayDays} <span className="text-navy-400">(reference only, not deducted)</span>
         </div>
       )}
 
-      <Toolbar search={search} onSearchChange={setSearch} searchPlaceholder="Search by employee name...">
-        <ImportPanel
-          title="Import Attendance"
-          fileName="attendance.xlsx"
-          previewUrl="/api/import/attendance"
-          confirmUrl="/api/import/attendance"
-          templateUrl="/api/import/attendance/template"
-          onImported={() => {}}
-        />
-      </Toolbar>
+      <div className="shrink-0">
+        <Toolbar search={search} onSearchChange={setSearch} searchPlaceholder="Search by employee name...">
+          <ImportPanel
+            title="Import Attendance"
+            fileName="attendance.xlsx"
+            previewUrl="/api/import/attendance"
+            confirmUrl="/api/import/attendance"
+            templateUrl="/api/import/attendance/template"
+            onImported={() => {}}
+          />
+        </Toolbar>
+      </div>
 
       {isLoading ? (
         <div className="card p-8 text-center text-sm text-navy-400">Loading attendance...</div>
@@ -191,12 +193,13 @@ export default function AttendancePage() {
           description="Upload an attendance Excel file or enter Actual Absent Days directly in the table."
         />
       ) : (
-        <div className="card overflow-x-auto">
-          <p className="text-xs text-navy-500 px-4 pt-3">
-            Enter the number of Actual Absent Days for an employee — Present Days, Deductible Absent Days and Payable
-            Days are calculated automatically.
-          </p>
-          <table className="table-base">
+        <>
+        <p className="shrink-0 text-xs text-navy-500">
+          Enter the number of Actual Absent Days for an employee — Present Days, Deductible Absent Days and Payable
+          Days are calculated automatically.
+        </p>
+        <div className="card scroll-thick flex-1 min-h-0 overflow-auto">
+          <table className="table-base table-sticky-head">
             <thead>
               <tr>
                 <th>Employee</th>
@@ -216,6 +219,7 @@ export default function AttendancePage() {
             </tbody>
           </table>
         </div>
+        </>
       )}
     </div>
   );

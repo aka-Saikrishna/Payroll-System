@@ -14,7 +14,7 @@ export function Toolbar({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="card p-3 flex flex-wrap items-center gap-2 justify-between">
+    <div className="shrink-0 card p-3 flex flex-wrap items-center gap-2 justify-between">
       {onSearchChange ? (
         <div className="relative flex-1 min-w-[220px] max-w-sm">
           <SearchIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 text-navy-400" />

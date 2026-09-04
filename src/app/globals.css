@@ -53,6 +53,16 @@
   }
 }
 
+/* Freezes a table's header row against its scrolling ancestor.
+   The background must be fully opaque — the default bg-navy-50/60 is 60%
+   transparent, so rows would be visible scrolling through the header. */
+.table-sticky-head thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background-color: #f0f4f8;
+}
+
 /* Wide, high-contrast scrollbars so the salary sheet can be dragged with a
    mouse, not just swiped on a touchpad. */
 .scroll-thick {
