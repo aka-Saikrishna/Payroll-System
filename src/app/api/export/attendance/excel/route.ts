@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession, handleApiError } from "@/lib/api-helpers";
 import { getOrCreatePayrollPeriod } from "@/lib/payroll/period";
+import { computeAttendanceDerivedFields } from "@/lib/payroll/engine";
 import { buildAttendanceWorkbook, AttendanceExportRow } from "@/lib/excel/attendanceExport";
 import { getCompanyByCode } from "@/lib/companies";
 
@@ -20,7 +21,14 @@ export async function GET(request: NextRequest) {
     const employees = await prisma.employee.findMany({
       where: { status: "ACTIVE", company },
       orderBy: { employeeCode: "asc" },
-      select: { id: true, employeeCode: true, name: true },
+      select: {
+        id: true,
+        employeeCode: true,
+        name: true,
+        // Paid leave is opt-in per employee, so the forgiveness only applies
+        // to those it was assigned to.
+        salaryConfig: { select: { paidLeaveApplicable: true } },
+      },
     });
 
     const monthStart = new Date(Date.UTC(year, month - 1, 1));
@@ -44,6 +52,14 @@ export async function GET(request: NextRequest) {
 
     const rows: AttendanceExportRow[] = employees.map((e, idx) => {
       const c = counts.get(e.id) ?? { present: 0, absent: 0 };
+      // Same engine the salary sheet uses, so the paid-leave forgiveness in
+      // this export always matches what payroll actually deducted.
+      const derived = computeAttendanceDerivedFields({
+        workingDays: period.workingDays,
+        presentDays: c.present,
+        actualAbsentDays: c.absent,
+        paidLeaveApplicable: e.salaryConfig?.paidLeaveApplicable ?? false,
+      });
       return {
         slNo: idx + 1,
         employeeCode: e.employeeCode,
@@ -51,6 +67,9 @@ export async function GET(request: NextRequest) {
         workingDays: period.workingDays,
         presentDays: c.present,
         absentDays: c.absent,
+        paidLeaveUsed: derived.paidLeaveUsed,
+        deductibleAbsentDays: derived.deductibleAbsentDays,
+        payableDays: derived.payableDays,
       };
     });
 

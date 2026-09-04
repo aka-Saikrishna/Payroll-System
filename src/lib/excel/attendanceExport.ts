@@ -8,6 +8,9 @@ export interface AttendanceExportRow {
   workingDays: number;
   presentDays: number;
   absentDays: number;
+  paidLeaveUsed: number;
+  deductibleAbsentDays: number;
+  payableDays: number;
 }
 
 export interface AttendanceExportHeader {
@@ -23,7 +26,7 @@ const THIN_BORDER: Partial<ExcelJS.Borders> = {
   right: { style: "thin" },
 };
 
-const TOTAL_COLUMNS = 6;
+const TOTAL_COLUMNS = 9;
 
 /**
  * A deliberately minimal attendance sheet: who worked, how many days were
@@ -39,7 +42,7 @@ export async function buildAttendanceWorkbook(
     pageSetup: { orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
   });
 
-  sheet.columns = [6, 14, 30, 14, 14, 14].map((width) => ({ width }));
+  sheet.columns = [6, 14, 30, 12, 12, 12, 12, 13, 12].map((width) => ({ width }));
 
   function mergeAndSet(row: number, value: string, opts?: { bold?: boolean; size?: number }) {
     sheet.mergeCells(row, 1, row, TOTAL_COLUMNS);
@@ -54,7 +57,17 @@ export async function buildAttendanceWorkbook(
   mergeAndSet(3, `For the month of ${MONTH_NAMES[header.month - 1].toUpperCase()} ${header.year}`, { size: 10 });
   sheet.getRow(4).height = 6;
 
-  const headers = ["Sl. No", "Emp. Code", "Name of the Worker", "Working Days", "Present Days", "Absent Days"];
+  const headers = [
+    "Sl. No",
+    "Emp. Code",
+    "Name of the Worker",
+    "Working Days",
+    "Present Days",
+    "Absent Days",
+    "Paid Leave Used",
+    "Deductible Absent",
+    "Payable Days",
+  ];
   headers.forEach((label, i) => {
     const cell = sheet.getCell(5, i + 1);
     cell.value = label;
@@ -66,7 +79,17 @@ export async function buildAttendanceWorkbook(
 
   let rowIdx = 6;
   for (const r of rows) {
-    const values = [r.slNo, r.employeeCode, r.name, r.workingDays, r.presentDays, r.absentDays];
+    const values = [
+      r.slNo,
+      r.employeeCode,
+      r.name,
+      r.workingDays,
+      r.presentDays,
+      r.absentDays,
+      r.paidLeaveUsed,
+      r.deductibleAbsentDays,
+      r.payableDays,
+    ];
     values.forEach((v, i) => {
       const cell = sheet.getCell(rowIdx, i + 1);
       cell.value = v as ExcelJS.CellValue;
@@ -79,9 +102,18 @@ export async function buildAttendanceWorkbook(
   }
 
   // Totals row for the day columns.
-  const totalPresent = rows.reduce((a, r) => a + r.presentDays, 0);
-  const totalAbsent = rows.reduce((a, r) => a + r.absentDays, 0);
-  const totalCells = ["", "", "Total", "", totalPresent, totalAbsent];
+  const sum = (pick: (r: AttendanceExportRow) => number) => rows.reduce((a, r) => a + pick(r), 0);
+  const totalCells = [
+    "",
+    "",
+    "Total",
+    "",
+    sum((r) => r.presentDays),
+    sum((r) => r.absentDays),
+    sum((r) => r.paidLeaveUsed),
+    sum((r) => r.deductibleAbsentDays),
+    sum((r) => r.payableDays),
+  ];
   totalCells.forEach((v, i) => {
     const cell = sheet.getCell(rowIdx, i + 1);
     cell.value = v as ExcelJS.CellValue;

@@ -42,8 +42,12 @@ export async function GET(request: NextRequest) {
       hra: Number(r.hra),
       conveyance: Number(r.conveyance),
       totalPay: Number(r.monthlySalary),
-      daysWorked: r.presentDays,
-      daysAbsent: r.actualAbsentDays,
+      // Paid-leave adjusted, so the register reconciles with what was paid:
+      // gross salary is derived from payableDays, and these two always sum to
+      // workingDays. Raw presentDays / actualAbsentDays would show an absence
+      // that the paid leave already covered and was never deducted for.
+      daysWorked: r.payableDays,
+      daysAbsent: r.deductibleAbsentDays,
       totalGrossSalary: Number(r.salaryAfterAbsence),
       pf: Number(r.pf),
       esi: Number(r.esi),
