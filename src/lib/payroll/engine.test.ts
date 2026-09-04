@@ -93,12 +93,26 @@ describe("computeSalaryAfterAbsence", () => {
 });
 
 describe("full attendance bonus eligibility", () => {
-  it("0 actual absences -> eligible", () => {
-    expect(computeBonusEligibility(0)).toBe(true);
+  it("present every working day (31 of 31) -> eligible", () => {
+    expect(computeBonusEligibility(31, 31, 0)).toBe(true);
   });
 
   it("1 absence (even if paid-leave covered) -> NOT eligible", () => {
-    expect(computeBonusEligibility(1)).toBe(false);
+    expect(computeBonusEligibility(31, 30, 1)).toBe(false);
+  });
+
+  // An employee with no attendance uploaded has 0 absences recorded, but has
+  // not shown up either — they must not collect a full attendance bonus.
+  it("no attendance recorded at all -> NOT eligible", () => {
+    expect(computeBonusEligibility(31, 0, 0)).toBe(false);
+  });
+
+  it("partial attendance with no absence marked -> NOT eligible", () => {
+    expect(computeBonusEligibility(31, 28, 0)).toBe(false);
+  });
+
+  it("zero working days -> NOT eligible", () => {
+    expect(computeBonusEligibility(0, 0, 0)).toBe(false);
   });
 
   it("computeBonus returns 0 when rule disabled", () => {

@@ -105,8 +105,19 @@ export interface BonusRuleConfig {
   amount: number;
 }
 
-export function computeBonusEligibility(actualAbsentDays: number): boolean {
-  return actualAbsentDays === 0;
+/**
+ * Full attendance means present for every working day in the month —
+ * 31 out of 31, not merely "no absence recorded". Checking absences alone
+ * would pay the bonus to an employee with no attendance uploaded at all
+ * (0 present, 0 absent), which is the opposite of earning it.
+ */
+export function computeBonusEligibility(
+  workingDays: number,
+  presentDays: number,
+  actualAbsentDays: number
+): boolean {
+  if (workingDays <= 0) return false;
+  return actualAbsentDays === 0 && presentDays === workingDays;
 }
 
 export function computeBonus(bonusRule: BonusRuleConfig | null, isEligible: boolean): number {
@@ -258,7 +269,11 @@ export function calculateEmployeePayroll(input: EmployeePayrollInput): EmployeeP
     deductibleAbsentDays
   );
 
-  const bonusEligible = computeBonusEligibility(input.actualAbsentDays);
+  const bonusEligible = computeBonusEligibility(
+    input.workingDays,
+    input.presentDays,
+    input.actualAbsentDays
+  );
   const bonus = computeBonus(input.bonusRule, bonusEligible);
 
   const dailyRate = computeDailyRate(input.monthlySalary, input.workingDays);

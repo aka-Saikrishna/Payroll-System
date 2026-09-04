@@ -736,7 +736,7 @@ export default function SalarySheetsPage() {
                 <th className="sticky top-[33px] z-[8] !bg-white">Deductible Absent</th>
                 <th className="sticky top-[33px] z-[8] !bg-white">Payable Days</th>
                 <th className="sticky top-[33px] z-[8] border-l border-navy-200 !bg-white">Salary After Absence</th>
-                <th className="sticky top-[33px] z-[8] !bg-white">Bonus</th>
+                <th className="sticky top-[33px] z-[8] !bg-white">Full Attendance Bonus</th>
                 <th className="sticky top-[33px] z-[8] !bg-white">OT Days</th>
                 <th className="sticky top-[33px] z-[8] !bg-white">OT Amount</th>
                 <th className="sticky top-[33px] z-[8] !bg-white">Total Earnings</th>
