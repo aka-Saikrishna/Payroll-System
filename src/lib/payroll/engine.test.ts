@@ -11,7 +11,7 @@ import {
   computePt,
   computeSalaryAfterAbsence,
   PayrollValidationError,
-  roundToNearest10,
+  round0,
 } from "./engine";
 
 describe("computeAttendanceDerivedFields — monthly paid leave rule", () => {
@@ -296,21 +296,48 @@ describe("PF and ESI wage bases — PF prorated on Basic Salary, ESI on Salary A
   });
 });
 
-describe("roundToNearest10 — factory rounding convention", () => {
-  it("remainder >= 5 rounds up to the next 10", () => {
-    expect(roundToNearest10(6695)).toBe(6700);
-    expect(roundToNearest10(5)).toBe(10);
+describe("round0 — whole rupee, matching the Register of Wages", () => {
+  it("rounds a fraction to the nearest whole rupee", () => {
+    expect(round0(38822.58)).toBe(38823);
+    expect(round0(21983.87)).toBe(21984);
   });
 
-  it("remainder < 5 rounds down (truncates)", () => {
-    expect(roundToNearest10(3032)).toBe(3030);
-    expect(roundToNearest10(4)).toBe(0);
+  it("leaves whole rupees untouched — no snapping to a multiple of 10", () => {
+    expect(round0(6695)).toBe(6695);
+    expect(round0(3032)).toBe(3032);
+    expect(round0(79166)).toBe(79166);
   });
+});
 
-  it("already a multiple of 10 is unchanged", () => {
-    expect(roundToNearest10(3790)).toBe(3790);
-    expect(roundToNearest10(7260)).toBe(7260);
-    expect(roundToNearest10(0)).toBe(0);
+// The whole point of whole-rupee rounding: a payslip must add up exactly, so
+// the register can be reconciled against the spreadsheet line by line.
+describe("register reconciles exactly", () => {
+  it("net salary equals total earnings minus total deductions, to the rupee", () => {
+    const r = calculateEmployeePayroll({
+      basicSalary: 41500,
+      monthlySalary: 41500,
+      workingDays: 31,
+      presentDays: 29,
+      actualAbsentDays: 2,
+      advanceAmount: 0,
+      canteenCharges: 950,
+      otDays: 5,
+      otherAmount: 0,
+      paidLeaveApplicable: false,
+      pfApplicable: false,
+      esiApplicable: false,
+      ptApplicable: true,
+      bonusRule: null,
+      pfRule: null,
+      esiRule: null,
+      ptSlabs: [{ minSalary: 20001, maxSalary: null, ptAmount: 200 }],
+    });
+    // Matches the spreadsheet: ROUND(41500/31,0) = 1339 daily, x5 OT = 6695.
+    expect(r.dailyRate).toBe(1339);
+    expect(r.otAmount).toBe(6695);
+    expect(r.netSalary).toBe(r.totalEarnings - r.totalDeductions);
+    expect(Number.isInteger(r.netSalary)).toBe(true);
+    expect(Number.isInteger(r.totalEarnings)).toBe(true);
   });
 });
 
@@ -322,16 +349,22 @@ describe("OT / Late Hours — verified against a real Register of Wages sheet (v
     expect(computeDailyRate(45000, 31)).toBe(1452);
   });
 
-  it("5 OT days x Rs.1339 = 6695 -> rounds up to 6700", () => {
-    expect(computeOvertimeAmount(5, 1339)).toBe(6700);
+  // Whole rupees, exactly as the sheet's Daily Rate x OT Days column computes
+  // it — these previously snapped to 6700 and 3030 under nearest-10 rounding.
+  it("5 OT days x Rs.1339 = 6695 exactly", () => {
+    expect(computeOvertimeAmount(5, 1339)).toBe(6695);
   });
 
-  it("4 OT days x Rs.758 = 3032 -> rounds down to 3030", () => {
-    expect(computeOvertimeAmount(4, 758)).toBe(3030);
+  it("4 OT days x Rs.758 = 3032 exactly", () => {
+    expect(computeOvertimeAmount(4, 758)).toBe(3032);
   });
 
-  it("5 OT days x Rs.758 = 3790 -> already a multiple of 10", () => {
+  it("5 OT days x Rs.758 = 3790", () => {
     expect(computeOvertimeAmount(5, 758)).toBe(3790);
+  });
+
+  it("half a day rounds to the nearest rupee", () => {
+    expect(computeOvertimeAmount(0.5, 1339)).toBe(670); // 669.5 -> 670
   });
 
   it("0 OT days -> 0 amount", () => {

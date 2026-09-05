@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma, PayrollStatus } from "@prisma/client";
 import { computeCalendarBreakdown } from "./period";
 import { resolveApplicableRule, resolveApplicablePtSlabs } from "./rules";
-import { calculateEmployeePayroll, computeOvertimeAmount, roundToNearest10 } from "./engine";
+import { calculateEmployeePayroll, computeOvertimeAmount, round0 } from "./engine";
 import { writeAuditLog } from "@/lib/audit";
 import { ApiError } from "@/lib/api-helpers";
 
@@ -366,11 +366,11 @@ export async function updatePayrollExtras(
     ? round2((extras.otherAmount / workingDays) * payableDays)
     : round2(extras.otherAmount);
   const bonus = extras.bonus !== undefined ? round2(extras.bonus) : toNum(record.bonus);
-  const totalEarnings = roundToNearest10(toNum(record.salaryAfterAbsence) + bonus + otAmount + otherAmount);
+  const totalEarnings = round0(toNum(record.salaryAfterAbsence) + bonus + otAmount + otherAmount);
   const totalDeductions = round2(
     toNum(record.esi) + toNum(record.pf) + toNum(record.pt) + toNum(record.advance) + extras.canteenCharges
   );
-  const netSalary = roundToNearest10(totalEarnings - totalDeductions);
+  const netSalary = round0(totalEarnings - totalDeductions);
   const { cashAmount, chequeAmount } = computePaymentSplit(netSalary, toNum(record.chequeAmount));
 
   const updated = await prisma.payrollRecord.update({
@@ -475,11 +475,11 @@ export async function toggleBonusForPeriod(
     const proratedOther = record.workingDays > 0
       ? round2((rawOther / record.workingDays) * record.payableDays)
       : rawOther;
-    const totalEarnings = roundToNearest10(
+    const totalEarnings = round0(
       toNum(record.salaryAfterAbsence) + bonus + toNum(record.otAmount) + proratedOther
     );
     const totalDeductions = toNum(record.totalDeductions);
-    const netSalary = roundToNearest10(totalEarnings - totalDeductions);
+    const netSalary = round0(totalEarnings - totalDeductions);
     const { cashAmount, chequeAmount } = computePaymentSplit(netSalary, toNum(record.chequeAmount));
 
     updates.push(

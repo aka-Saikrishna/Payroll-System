@@ -16,15 +16,17 @@ function round2(n: number): number {
 }
 
 /**
- * Rounds a rupee amount to the nearest 10, matching the factory's manual
- * convention: a remainder under 5 rounds down (truncates to the lower 10),
- * a remainder of 5 or more rounds up to the next 10.
- * e.g. 6695 -> 6700 (remainder 5, rounds up), 3032 -> 3030 (remainder 2, rounds down).
+ * Rounds to whole rupees, matching the Register of Wages spreadsheets, which
+ * carry every payable figure as ROUND(x, 0).
+ *
+ * This replaced an earlier round-to-nearest-10 convention. That version was
+ * not a systematic overpayment — it rounded up and down roughly evenly — but
+ * its half-up tie-break biased it +0.50 per rounding, and more importantly no
+ * row ever matched the register exactly, so the sheets could not be used to
+ * verify payroll. Whole rupees make the two reconcile line for line.
  */
-export function roundToNearest10(n: number): number {
-  const rounded = Math.round(n);
-  const remainder = ((rounded % 10) + 10) % 10;
-  return remainder < 5 ? rounded - remainder : rounded + (10 - remainder);
+export function round0(n: number): number {
+  return Math.round(n);
 }
 
 // ------------------------------------------------------------------
@@ -184,7 +186,8 @@ export function computePt(slabs: PtSlabConfig[], applicable: boolean, wageBase: 
 // dailyRate is the same per-day rate used for absence deduction (Monthly
 // Salary / Working Days), rounded to the nearest rupee. otDays is entered
 // manually by the admin (fractional days allowed). The resulting amount is
-// rounded to the nearest 10 rupees and added into Total Earnings.
+// rounded to whole rupees and added into Total Earnings, matching the
+// register's Daily Rate x OT Days column.
 // ------------------------------------------------------------------
 
 export function computeDailyRate(monthlySalary: number, workingDays: number): number {
@@ -194,7 +197,7 @@ export function computeDailyRate(monthlySalary: number, workingDays: number): nu
 
 export function computeOvertimeAmount(otDays: number, dailyRate: number): number {
   if (otDays <= 0) return 0;
-  return roundToNearest10(otDays * dailyRate);
+  return round0(otDays * dailyRate);
 }
 
 // ------------------------------------------------------------------
@@ -282,7 +285,7 @@ export function calculateEmployeePayroll(input: EmployeePayrollInput): EmployeeP
   const otherAmount = input.workingDays > 0
     ? round2((input.otherAmount / input.workingDays) * payableDays)
     : round2(input.otherAmount);
-  const totalEarnings = roundToNearest10(salaryAfterAbsence + bonus + otAmount + otherAmount);
+  const totalEarnings = round0(salaryAfterAbsence + bonus + otAmount + otherAmount);
 
   // PF is levied on Basic Salary prorated by payable days (see computePf).
   // ESI is levied on Salary After Absence — the Rate of Pay after the
@@ -298,7 +301,7 @@ export function calculateEmployeePayroll(input: EmployeePayrollInput): EmployeeP
   const canteenCharges = round2(input.canteenCharges);
 
   const totalDeductions = round2(esi + pf + pt + advance + canteenCharges);
-  const netSalary = roundToNearest10(totalEarnings - totalDeductions);
+  const netSalary = round0(totalEarnings - totalDeductions);
 
   return {
     workingDays: input.workingDays,

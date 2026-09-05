@@ -50,10 +50,10 @@ function r2(n: number) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
-function r10(n: number) {
-  const rounded = Math.round(n);
-  const rem = ((rounded % 10) + 10) % 10;
-  return rem < 5 ? rounded - rem : rounded + (10 - rem);
+// Whole rupees — must mirror round0() in the payroll engine, otherwise the
+// optimistic cell update would show a different figure than the server saves.
+function r0(n: number) {
+  return Math.round(n);
 }
 
 function EditableAmount({
@@ -170,14 +170,14 @@ function SalarySheetRow({
     onMutate: async (vals) => {
       await queryClient.cancelQueries({ queryKey: recordsQueryKey });
       const prev = queryClient.getQueryData(recordsQueryKey);
-      const otAmount = r10(vals.otDays * Number(record.dailyRate));
+      const otAmount = r0(vals.otDays * Number(record.dailyRate));
       const bonus = vals.bonus !== undefined ? vals.bonus : Number(record.bonus);
       const proratedOther = record.workingDays > 0
         ? r2((vals.otherAmount / record.workingDays) * record.payableDays)
         : vals.otherAmount;
-      const totalEarnings = r10(Number(record.salaryAfterAbsence) + bonus + otAmount + proratedOther);
+      const totalEarnings = r0(Number(record.salaryAfterAbsence) + bonus + otAmount + proratedOther);
       const totalDeductions = r2(Number(record.pf) + Number(record.esi) + Number(record.pt) + Number(record.advance) + vals.canteenCharges);
-      const netSalary = r10(totalEarnings - totalDeductions);
+      const netSalary = r0(totalEarnings - totalDeductions);
       const cheque = r2(Math.min(Math.max(Number(record.chequeAmount), 0), Math.max(netSalary, 0)));
       patchRecord({ ...(vals.bonus !== undefined ? { bonus: String(bonus) } : {}), otDays: String(vals.otDays), otAmount: String(otAmount), otherAmount: String(vals.otherAmount), canteenCharges: String(vals.canteenCharges), totalEarnings: String(totalEarnings), totalDeductions: String(totalDeductions), netSalary: String(netSalary), cashAmount: String(r2(netSalary - cheque)), chequeAmount: String(cheque) });
       return { prev };
@@ -193,7 +193,7 @@ function SalarySheetRow({
       await queryClient.cancelQueries({ queryKey: recordsQueryKey });
       const prev = queryClient.getQueryData(recordsQueryKey);
       const totalDeductions = r2(Number(record.pf) + Number(record.esi) + Number(record.pt) + amount + Number(record.canteenCharges));
-      const netSalary = r10(Number(record.totalEarnings) - totalDeductions);
+      const netSalary = r0(Number(record.totalEarnings) - totalDeductions);
       const cheque = r2(Math.min(Math.max(Number(record.chequeAmount), 0), Math.max(netSalary, 0)));
       patchRecord({ advance: String(amount), totalDeductions: String(totalDeductions), netSalary: String(netSalary), cashAmount: String(r2(netSalary - cheque)), chequeAmount: String(cheque) });
       return { prev };
