@@ -17,7 +17,12 @@ export interface CompanyInfo {
  */
 export const COMPANIES: Record<string, CompanyInfo> = {
   VPPL: { code: "VPPL", name: "VEEJAY POLY PLAST LIMITED", prefix: "" },
-  VPFL: { code: "VPFL", name: "VEEJAY POLY FILMS LIMITED", prefix: "/vpfl" },
+  VPFL: {
+    code: "VPFL",
+    name: "VEEJAY POLY FILMS LIMITED",
+    prefix: "/vpfl",
+    address: "SY NO 106/A, MADANAPURAM, KOTHUR MANDAL, MAHABOOBNAGAR DIST",
+  },
 };
 
 export function getCompanyByCode(code: string): CompanyInfo {
