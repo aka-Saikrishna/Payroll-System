@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession, handleApiError, ApiError } from "@/lib/api-helpers";
 import { buildRegisterOfWagesWorkbook, RegisterRow } from "@/lib/excel/registerExport";
+import { getCompanyByCode } from "@/lib/companies";
 import { formatDate } from "@/lib/date-utils";
 
 export const runtime = "nodejs";
@@ -57,13 +58,16 @@ export async function GET(request: NextRequest) {
       totalDeductions: Number(r.totalDeductions),
       otAmount: Number(r.otAmount),
       otherAmount: Number(r.otherAmount),
+      bonus: Number(r.bonus),
       netSalaryPaid: Number(r.netSalary),
       dateOfPayment: r.status === "FINALIZED" ? formatDate(r.updatedAt) : "",
     }));
 
     const buffer = await buildRegisterOfWagesWorkbook(
       {
-        companyName: settings?.companyName || "VEEKAY",
+        // Must come from the selected company, not companySettings — that is a
+        // single global row, so a VPFL export was printing VPPL's name.
+        companyName: getCompanyByCode(company).name,
         address: settings?.address || "",
         managerName: settings?.managerName || "",
         statutoryRef: settings?.statutoryRef || "Vide rule 6 A of A.P. PAYMENT OF Wages Rules, 1937",
