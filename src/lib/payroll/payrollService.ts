@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma, PayrollStatus } from "@prisma/client";
 import { computeCalendarBreakdown } from "./period";
 import { resolveApplicableRule, resolveApplicablePtSlabs } from "./rules";
-import { calculateEmployeePayroll, computeOvertimeAmount, round0 } from "./engine";
+import { calculateEmployeePayroll, computeOvertimeAmount, computeProratedOtherAmount, round0 } from "./engine";
 import { writeAuditLog } from "@/lib/audit";
 import { ApiError } from "@/lib/api-helpers";
 
@@ -362,9 +362,7 @@ export async function updatePayrollExtras(
   const otAmount = computeOvertimeAmount(extras.otDays, toNum(record.dailyRate));
   const workingDays = record.workingDays;
   const payableDays = record.payableDays;
-  const otherAmount = workingDays > 0
-    ? round2((extras.otherAmount / workingDays) * payableDays)
-    : round2(extras.otherAmount);
+  const otherAmount = computeProratedOtherAmount(extras.otherAmount, workingDays, payableDays);
   const bonus = extras.bonus !== undefined ? round2(extras.bonus) : toNum(record.bonus);
   const totalEarnings = round0(toNum(record.salaryAfterAbsence) + bonus + otAmount + otherAmount);
   const totalDeductions = round2(
@@ -472,9 +470,7 @@ export async function toggleBonusForPeriod(
   for (const record of records) {
     const bonus = enabled && record.bonusEligible ? round2(bonusAmount) : 0;
     const rawOther = toNum(record.otherAmount);
-    const proratedOther = record.workingDays > 0
-      ? round2((rawOther / record.workingDays) * record.payableDays)
-      : rawOther;
+    const proratedOther = computeProratedOtherAmount(rawOther, record.workingDays, record.payableDays);
     const totalEarnings = round0(
       toNum(record.salaryAfterAbsence) + bonus + toNum(record.otAmount) + proratedOther
     );

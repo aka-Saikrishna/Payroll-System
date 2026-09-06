@@ -200,6 +200,22 @@ export function computeOvertimeAmount(otDays: number, dailyRate: number): number
   return round0(otDays * dailyRate);
 }
 
+/**
+ * Other Salary is entered as a monthly figure and earned pro rata like the
+ * salary itself — the full amount for a full month, reduced by unprotected
+ * absences. The raw monthly figure is what gets stored; this is what is
+ * actually paid, so anything reporting earnings must use this, not the raw
+ * value, or the register will not add up.
+ */
+export function computeProratedOtherAmount(
+  otherAmount: number,
+  workingDays: number,
+  payableDays: number
+): number {
+  if (workingDays <= 0) return round2(otherAmount);
+  return round2((otherAmount / workingDays) * payableDays);
+}
+
 // ------------------------------------------------------------------
 // Full pipeline
 // ------------------------------------------------------------------
@@ -282,9 +298,7 @@ export function calculateEmployeePayroll(input: EmployeePayrollInput): EmployeeP
   const dailyRate = computeDailyRate(input.monthlySalary, input.workingDays);
   const otAmount = computeOvertimeAmount(input.otDays, dailyRate);
 
-  const otherAmount = input.workingDays > 0
-    ? round2((input.otherAmount / input.workingDays) * payableDays)
-    : round2(input.otherAmount);
+  const otherAmount = computeProratedOtherAmount(input.otherAmount, input.workingDays, payableDays);
   const totalEarnings = round0(salaryAfterAbsence + bonus + otAmount + otherAmount);
 
   // PF is levied on Basic Salary prorated by payable days (see computePf).

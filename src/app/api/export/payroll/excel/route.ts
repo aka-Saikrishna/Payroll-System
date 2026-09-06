@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession, handleApiError, ApiError } from "@/lib/api-helpers";
 import { buildRegisterOfWagesWorkbook, RegisterRow } from "@/lib/excel/registerExport";
 import { getCompanyByCode } from "@/lib/companies";
+import { computeProratedOtherAmount } from "@/lib/payroll/engine";
 import { formatDate } from "@/lib/date-utils";
 
 export const runtime = "nodejs";
@@ -57,7 +58,10 @@ export async function GET(request: NextRequest) {
       canteenCharges: Number(r.canteenCharges),
       totalDeductions: Number(r.totalDeductions),
       otAmount: Number(r.otAmount),
-      otherAmount: Number(r.otherAmount),
+      // The stored figure is the raw monthly Other Salary; what was actually
+      // paid is that pro-rated by attendance. Reporting the raw value here
+      // would leave the register short of its own Net Salary column.
+      otherAmount: computeProratedOtherAmount(Number(r.otherAmount), r.workingDays, r.payableDays),
       bonus: Number(r.bonus),
       netSalaryPaid: Number(r.netSalary),
       dateOfPayment: r.status === "FINALIZED" ? formatDate(r.updatedAt) : "",
