@@ -22,9 +22,12 @@ export const COMPANIES: Record<string, CompanyInfo> = {
     prefix: "",
     address: "SY NO 106/A, MADANAPURAM, KOTHUR MANDAL, MAHABOOBNAGAR DIST",
   },
-  // VPFL is at Kattedan. Left empty until that address is supplied — the
-  // register then prints the name alone rather than VPPL's Kothur premises.
-  VPFL: { code: "VPFL", name: "VEEJAY POLY FILMS LIMITED", prefix: "/vpfl", address: "" },
+  VPFL: {
+    code: "VPFL",
+    name: "VEEJAY POLY FILMS LIMITED",
+    prefix: "/vpfl",
+    address: "SY NO 42, KATTEDAN, RANGAREDDY DIST",
+  },
 };
 
 export function getCompanyByCode(code: string): CompanyInfo {
