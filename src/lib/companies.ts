@@ -3,12 +3,12 @@ export interface CompanyInfo {
   name: string;
   prefix: string;
   /**
-   * Village / district printed beneath the company name on the Register of
-   * Wages. CompanySettings holds only one address for the whole system, so a
-   * company that sits at its own premises overrides it here. Left empty, the
-   * register falls back to the CompanySettings address.
+   * Premises printed beneath the company name on the Register of Wages.
+   * Held here rather than in CompanySettings, which stores a single address
+   * for the whole system and so cannot describe two sites. Empty prints the
+   * company name alone — never another company's address.
    */
-  address?: string;
+  address: string;
 }
 
 /**
@@ -16,10 +16,15 @@ export interface CompanyInfo {
  * so this module must stay free of client-only imports.
  */
 export const COMPANIES: Record<string, CompanyInfo> = {
-  VPPL: { code: "VPPL", name: "VEEJAY POLY PLAST LIMITED", prefix: "" },
-  // VPFL is at Kattedan — its address is still to be supplied. Left unset so
-  // the register falls back rather than printing a Kothur address here.
-  VPFL: { code: "VPFL", name: "VEEJAY POLY FILMS LIMITED", prefix: "/vpfl" },
+  VPPL: {
+    code: "VPPL",
+    name: "VEEJAY POLY PLAST LIMITED",
+    prefix: "",
+    address: "SY NO 106/A, MADANAPURAM, KOTHUR MANDAL, MAHABOOBNAGAR DIST",
+  },
+  // VPFL is at Kattedan. Left empty until that address is supplied — the
+  // register then prints the name alone rather than VPPL's Kothur premises.
+  VPFL: { code: "VPFL", name: "VEEJAY POLY FILMS LIMITED", prefix: "/vpfl", address: "" },
 };
 
 export function getCompanyByCode(code: string): CompanyInfo {

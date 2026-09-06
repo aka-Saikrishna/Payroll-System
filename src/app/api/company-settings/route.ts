@@ -28,7 +28,6 @@ export async function PUT(request: NextRequest) {
           where: { id: existing.id },
           data: {
             companyName: body.companyName,
-            address: body.address || null,
             logoUrl: body.logoUrl || null,
             managerName: body.managerName || null,
             statutoryRef: body.statutoryRef || null,
@@ -38,7 +37,6 @@ export async function PUT(request: NextRequest) {
       : await prisma.companySettings.create({
           data: {
             companyName: body.companyName,
-            address: body.address || null,
             logoUrl: body.logoUrl || null,
             managerName: body.managerName || null,
             statutoryRef: body.statutoryRef || null,

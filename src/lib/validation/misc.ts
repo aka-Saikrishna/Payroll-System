@@ -69,7 +69,6 @@ export const userSchema = z.object({
 
 export const companySettingsSchema = z.object({
   companyName: z.string().trim().min(1),
-  address: z.string().optional().or(z.literal("")),
   logoUrl: z.string().optional().or(z.literal("")),
   managerName: z.string().optional().or(z.literal("")),
   statutoryRef: z.string().optional().or(z.literal("")),

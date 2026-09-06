@@ -9,7 +9,6 @@ export default function CompanySettingsPage() {
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
     companyName: "",
-    address: "",
     logoUrl: "",
     managerName: "",
     statutoryRef: "",
@@ -31,7 +30,6 @@ export default function CompanySettingsPage() {
     if (data?.settings) {
       setForm({
         companyName: data.settings.companyName,
-        address: data.settings.address || "",
         logoUrl: data.settings.logoUrl || "",
         managerName: data.settings.managerName || "",
         statutoryRef: data.settings.statutoryRef || "",
@@ -80,10 +78,9 @@ export default function CompanySettingsPage() {
           <label className="label">Company Name</label>
           <input className="input" value={form.companyName} onChange={(e) => setForm((f) => ({ ...f, companyName: e.target.value }))} required />
         </div>
-        <div>
-          <label className="label">Address</label>
-          <textarea className="input" rows={2} value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
-        </div>
+        {/* Address is per-company (VPPL and VPFL sit at different premises), so
+            it lives in src/lib/companies.ts. A single field here could only
+            hold one of the two and would silently not reach either register. */}
         <div>
           <label className="label">Logo URL</label>
           <input className="input" value={form.logoUrl} onChange={(e) => setForm((f) => ({ ...f, logoUrl: e.target.value }))} />
