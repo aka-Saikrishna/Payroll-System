@@ -13,6 +13,7 @@ import { DownloadIcon, EyeIcon, PrintIcon } from "@/components/icons";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { useCompany } from "@/lib/hooks/useCompany";
 import { formatCurrencyINR } from "@/lib/date-utils";
+import { resolveApplicableRule } from "@/lib/payroll/rules";
 
 interface PayrollRecordRow {
   id: string;
@@ -509,6 +510,35 @@ export default function SalarySheetsPage() {
 
   const bonusEnabled = periodData?.bonusEnabled ?? false;
 
+  // The monthly checkbox is only half the switch — computeBonus also requires
+  // the Full Attendance Bonus rule itself to be enabled in Settings. Resolve
+  // the rule for this month so the label can say what will actually happen
+  // rather than claiming the bonus is active when it cannot pay.
+  const { data: bonusRulesData } = useQuery({
+    queryKey: ["bonus-rules"],
+    queryFn: async () => {
+      const res = await fetch("/api/rules/bonus");
+      if (!res.ok) return { rules: [] };
+      return res.json();
+    },
+  });
+  const activeBonusRule = (() => {
+    const rules: { amount: string; enabled: boolean; effectiveFrom: string; effectiveTo: string | null }[] =
+      bonusRulesData?.rules || [];
+    if (!rules.length) return null;
+    const asOf = new Date(Date.UTC(year, month, 0)); // month end, as the engine does
+    return resolveApplicableRule(
+      rules.map((r) => ({
+        ...r,
+        effectiveFrom: new Date(r.effectiveFrom),
+        effectiveTo: r.effectiveTo ? new Date(r.effectiveTo) : null,
+      })),
+      asOf
+    );
+  })();
+  const bonusRuleActive = !!activeBonusRule?.enabled;
+  const bonusAmountLabel = activeBonusRule ? formatCurrencyINR(Number(activeBonusRule.amount)) : null;
+
   async function handleBonusToggle(checked: boolean) {
     if (!periodId) return;
     setBonusToggling(true);
@@ -640,7 +670,11 @@ export default function SalarySheetsPage() {
       {actionError && <div className="shrink-0 rounded-md bg-danger-50 text-danger-700 text-sm px-3 py-2">{actionError}</div>}
 
       {periodId && records.length > 0 && (
-        <div className="shrink-0 flex items-center gap-3 rounded-md bg-navy-50 text-navy-700 text-xs px-3 py-2">
+        <div
+          className={`shrink-0 flex items-center gap-3 rounded-md text-xs px-3 py-2 ${
+            bonusEnabled && !bonusRuleActive ? "bg-warning-50 text-warning-700" : "bg-navy-50 text-navy-700"
+          }`}
+        >
           <label className="flex items-center gap-2 font-medium cursor-pointer select-none">
             <input
               type="checkbox"
@@ -650,11 +684,23 @@ export default function SalarySheetsPage() {
             />
             {bonusToggling ? "Updating..." : "Enable Full Attendance Bonus"}
           </label>
-          <span className="text-navy-400">
-            {bonusEnabled
-              ? "Bonus is active — eligible employees receive the bonus. Amount is editable per employee."
-              : "Bonus is off for this month. Check to enable."}
-          </span>
+          {!bonusEnabled ? (
+            <span className="text-navy-400">Bonus is off for this month. Check to enable.</span>
+          ) : !bonusRuleActive ? (
+            // Ticked, but the rule is disabled or missing — nothing will pay out.
+            <span>
+              <strong>Nothing will be paid.</strong>{" "}
+              {activeBonusRule
+                ? "The Full Attendance Bonus rule is switched off in Settings → Bonus."
+                : "No Full Attendance Bonus rule applies to this month — add one in Settings → Bonus."}{" "}
+              Enable it there, then run Generate Payroll for this month.
+            </span>
+          ) : (
+            <span className="text-navy-400">
+              Bonus is active — employees present every working day receive{" "}
+              {bonusAmountLabel ?? "the bonus"}. Amount is editable per employee.
+            </span>
+          )}
         </div>
       )}
 
