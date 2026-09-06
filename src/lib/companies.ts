@@ -17,12 +17,9 @@ export interface CompanyInfo {
  */
 export const COMPANIES: Record<string, CompanyInfo> = {
   VPPL: { code: "VPPL", name: "VEEJAY POLY PLAST LIMITED", prefix: "" },
-  VPFL: {
-    code: "VPFL",
-    name: "VEEJAY POLY FILMS LIMITED",
-    prefix: "/vpfl",
-    address: "SY NO 106/A, MADANAPURAM, KOTHUR MANDAL, MAHABOOBNAGAR DIST",
-  },
+  // VPFL is at Kattedan — its address is still to be supplied. Left unset so
+  // the register falls back rather than printing a Kothur address here.
+  VPFL: { code: "VPFL", name: "VEEJAY POLY FILMS LIMITED", prefix: "/vpfl" },
 };
 
 export function getCompanyByCode(code: string): CompanyInfo {
