@@ -68,7 +68,8 @@ export async function GET(request: NextRequest) {
         // Must come from the selected company, not companySettings — that is a
         // single global row, so a VPFL export was printing VPPL's name.
         companyName: getCompanyByCode(company).name,
-        address: settings?.address || "",
+        // Per-company premises win; otherwise the shared CompanySettings address.
+        address: getCompanyByCode(company).address || settings?.address || "",
         managerName: settings?.managerName || "",
         statutoryRef: settings?.statutoryRef || "Vide rule 6 A of A.P. PAYMENT OF Wages Rules, 1937",
         year: period.year,

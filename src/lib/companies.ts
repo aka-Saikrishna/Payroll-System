@@ -2,6 +2,13 @@ export interface CompanyInfo {
   code: string;
   name: string;
   prefix: string;
+  /**
+   * Village / district printed beneath the company name on the Register of
+   * Wages. CompanySettings holds only one address for the whole system, so a
+   * company that sits at its own premises overrides it here. Left empty, the
+   * register falls back to the CompanySettings address.
+   */
+  address?: string;
 }
 
 /**
