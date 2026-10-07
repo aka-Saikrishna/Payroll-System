@@ -164,6 +164,7 @@ export async function generatePayrollForPeriod(payrollPeriodId: string, userId: 
       pfApplicable: employee.salaryConfig.pfApplicable,
       esiApplicable: employee.salaryConfig.esiApplicable,
       ptApplicable: employee.salaryConfig.ptApplicable,
+      bonusApplicable: employee.salaryConfig.bonusApplicable,
       bonusRule: period.bonusEnabled ? ruleSet.bonusRule : null,
       pfRule: ruleSet.pfRule,
       esiRule: ruleSet.esiRule,
@@ -280,6 +281,7 @@ export async function recalculateSingleEmployeePayroll(payrollPeriodId: string, 
     pfApplicable: employee.salaryConfig.pfApplicable,
     esiApplicable: employee.salaryConfig.esiApplicable,
     ptApplicable: employee.salaryConfig.ptApplicable,
+    bonusApplicable: employee.salaryConfig.bonusApplicable,
     bonusRule: period.bonusEnabled ? ruleSet.bonusRule : null,
     pfRule: ruleSet.pfRule,
     esiRule: ruleSet.esiRule,
@@ -463,12 +465,16 @@ export async function toggleBonusForPeriod(
   if (enabled) {
     const monthEnd = new Date(Date.UTC(period.year, period.month, 0));
     const ruleSet = await loadRuleSet(monthEnd);
-    bonusAmount = ruleSet.bonusRule?.amount ?? 0;
+    // Mirrors computeBonus: a rule that is switched off pays nothing, no
+    // matter what the monthly toggle says. Reading .amount alone would have
+    // paid out from a disabled rule.
+    bonusAmount = ruleSet.bonusRule?.enabled ? ruleSet.bonusRule.amount : 0;
   }
 
   const updates: Prisma.PrismaPromise<unknown>[] = [];
   for (const record of records) {
-    const bonus = enabled && record.bonusEligible ? round2(bonusAmount) : 0;
+    const applicable = record.employee.salaryConfig?.bonusApplicable ?? true;
+    const bonus = enabled && applicable && record.bonusEligible ? round2(bonusAmount) : 0;
     const rawOther = toNum(record.otherAmount);
     const proratedOther = computeProratedOtherAmount(rawOther, record.workingDays, record.payableDays);
     const totalEarnings = round0(

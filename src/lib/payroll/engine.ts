@@ -122,8 +122,17 @@ export function computeBonusEligibility(
   return actualAbsentDays === 0 && presentDays === workingDays;
 }
 
-export function computeBonus(bonusRule: BonusRuleConfig | null, isEligible: boolean): number {
-  if (!bonusRule || !bonusRule.enabled || !isEligible) return 0;
+/**
+ * `applicable` is the per-employee entitlement, matching how PF/ESI/PT are
+ * gated. All three must hold for anything to pay: the employee is entitled,
+ * a rule is in force, and attendance was complete.
+ */
+export function computeBonus(
+  bonusRule: BonusRuleConfig | null,
+  applicable: boolean,
+  isEligible: boolean
+): number {
+  if (!applicable || !bonusRule || !bonusRule.enabled || !isEligible) return 0;
   return round2(bonusRule.amount);
 }
 
@@ -234,6 +243,7 @@ export interface EmployeePayrollInput {
   pfApplicable: boolean;
   esiApplicable: boolean;
   ptApplicable: boolean;
+  bonusApplicable: boolean;
   bonusRule: BonusRuleConfig | null;
   pfRule: PfRuleConfig | null;
   esiRule: EsiRuleConfig | null;
@@ -293,7 +303,7 @@ export function calculateEmployeePayroll(input: EmployeePayrollInput): EmployeeP
     input.presentDays,
     input.actualAbsentDays
   );
-  const bonus = computeBonus(input.bonusRule, bonusEligible);
+  const bonus = computeBonus(input.bonusRule, input.bonusApplicable, bonusEligible);
 
   const dailyRate = computeDailyRate(input.monthlySalary, input.workingDays);
   const otAmount = computeOvertimeAmount(input.otDays, dailyRate);

@@ -116,15 +116,46 @@ describe("full attendance bonus eligibility", () => {
   });
 
   it("computeBonus returns 0 when rule disabled", () => {
-    expect(computeBonus({ enabled: false, amount: 200 }, true)).toBe(0);
+    expect(computeBonus({ enabled: false, amount: 200 }, true, true)).toBe(0);
   });
 
   it("computeBonus returns configured amount when eligible and enabled", () => {
-    expect(computeBonus({ enabled: true, amount: 200 }, true)).toBe(200);
+    expect(computeBonus({ enabled: true, amount: 200 }, true, true)).toBe(200);
   });
 
   it("computeBonus returns 0 when not eligible even if enabled", () => {
-    expect(computeBonus({ enabled: true, amount: 200 }, false)).toBe(0);
+    expect(computeBonus({ enabled: true, amount: 200 }, true, false)).toBe(0);
+  });
+
+  // Per-employee entitlement, set in bulk from the Employees page.
+  it("computeBonus returns 0 when the employee is not entitled, however eligible", () => {
+    expect(computeBonus({ enabled: true, amount: 200 }, false, true)).toBe(0);
+  });
+
+  it("full attendance but bonus not applicable to this employee -> no bonus", () => {
+    const r = calculateEmployeePayroll({
+      basicSalary: 20000,
+      monthlySalary: 20000,
+      workingDays: 25,
+      presentDays: 25,
+      actualAbsentDays: 0,
+      advanceAmount: 0,
+      paidLeaveApplicable: true,
+      canteenCharges: 0,
+      otDays: 0,
+      otherAmount: 0,
+      pfApplicable: false,
+      esiApplicable: false,
+      ptApplicable: false,
+      bonusApplicable: false,
+      bonusRule: { enabled: true, amount: 200 },
+      pfRule: null,
+      esiRule: null,
+      ptSlabs: [],
+    });
+    expect(r.bonusEligible).toBe(true); // attendance was perfect
+    expect(r.bonus).toBe(0); // but the employee is not entitled
+    expect(r.totalEarnings).toBe(20000);
   });
 });
 
@@ -204,6 +235,7 @@ describe("PT slab resolution", () => {
       pfApplicable: false,
       esiApplicable: false,
       ptApplicable: true,
+      bonusApplicable: true,
       bonusRule: null,
       pfRule: null,
       esiRule: null,
@@ -228,6 +260,7 @@ describe("PT slab resolution", () => {
       pfApplicable: false,
       esiApplicable: false,
       ptApplicable: true,
+      bonusApplicable: true,
       bonusRule: null,
       pfRule: null,
       esiRule: null,
@@ -258,6 +291,7 @@ describe("PF and ESI wage bases — PF prorated on Basic Salary, ESI on Salary A
       pfApplicable: true,
       esiApplicable: false,
       ptApplicable: false,
+      bonusApplicable: true,
       bonusRule: null,
       pfRule,
       esiRule: null,
@@ -282,6 +316,7 @@ describe("PF and ESI wage bases — PF prorated on Basic Salary, ESI on Salary A
       pfApplicable: false,
       esiApplicable: true,
       ptApplicable: false,
+      bonusApplicable: true,
       bonusRule,
       pfRule: null,
       esiRule,
@@ -327,6 +362,7 @@ describe("register reconciles exactly", () => {
       pfApplicable: false,
       esiApplicable: false,
       ptApplicable: true,
+      bonusApplicable: true,
       bonusRule: null,
       pfRule: null,
       esiRule: null,
@@ -397,6 +433,7 @@ describe("calculateEmployeePayroll — end to end (spec sample payroll flow, sec
       pfApplicable: true,
       esiApplicable: false,
       ptApplicable: true,
+      bonusApplicable: true,
       bonusRule,
       pfRule,
       esiRule,
@@ -426,6 +463,7 @@ describe("calculateEmployeePayroll — end to end (spec sample payroll flow, sec
       pfApplicable: false,
       esiApplicable: false,
       ptApplicable: true,
+      bonusApplicable: true,
       bonusRule,
       pfRule,
       esiRule,
@@ -452,6 +490,7 @@ describe("calculateEmployeePayroll — end to end (spec sample payroll flow, sec
       pfApplicable: false,
       esiApplicable: false,
       ptApplicable: false,
+      bonusApplicable: true,
       bonusRule,
       pfRule,
       esiRule,
@@ -477,6 +516,7 @@ describe("calculateEmployeePayroll — end to end (spec sample payroll flow, sec
       pfApplicable: false,
       esiApplicable: false,
       ptApplicable: false,
+      bonusApplicable: true,
       bonusRule: null,
       pfRule: null,
       esiRule: null,
@@ -501,6 +541,7 @@ describe("calculateEmployeePayroll — end to end (spec sample payroll flow, sec
       pfApplicable: false,
       esiApplicable: false,
       ptApplicable: false,
+      bonusApplicable: true,
       bonusRule: null,
       pfRule: null,
       esiRule: null,
@@ -529,6 +570,7 @@ describe("calculateEmployeePayroll — end to end (spec sample payroll flow, sec
       pfApplicable: false,
       esiApplicable: false,
       ptApplicable: false,
+      bonusApplicable: true,
       bonusRule: null,
       pfRule: null,
       esiRule: null,
@@ -554,6 +596,7 @@ describe("calculateEmployeePayroll — end to end (spec sample payroll flow, sec
         pfApplicable: false,
         esiApplicable: false,
         ptApplicable: false,
+        bonusApplicable: true,
           bonusRule: null,
         pfRule: null,
         esiRule: null,

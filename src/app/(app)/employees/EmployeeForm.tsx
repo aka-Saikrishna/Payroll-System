@@ -33,6 +33,7 @@ export function EmployeeForm({
       pfApplicable: false,
       esiApplicable: false,
       ptApplicable: true,
+      bonusApplicable: true,
       paidLeaveApplicable: false,
       ...defaultValues,
     },
@@ -47,6 +48,7 @@ export function EmployeeForm({
       pfApplicable: false,
       esiApplicable: false,
       ptApplicable: true,
+      bonusApplicable: true,
       paidLeaveApplicable: false,
       ...defaultValues,
     });
@@ -157,6 +159,9 @@ export function EmployeeForm({
           </label>
           <label className="flex items-center gap-2 text-sm text-navy-700">
             <input type="checkbox" {...register("ptApplicable")} /> PT Applicable
+          </label>
+          <label className="flex items-center gap-2 text-sm text-navy-700">
+            <input type="checkbox" {...register("bonusApplicable")} /> Attendance Bonus Applicable
           </label>
         </div>
       </section>

@@ -23,6 +23,7 @@ export const employeeSchema = z.object({
   pfApplicable: z.coerce.boolean().default(false),
   esiApplicable: z.coerce.boolean().default(false),
   ptApplicable: z.coerce.boolean().default(true),
+  bonusApplicable: z.coerce.boolean().default(true),
   paidLeaveApplicable: z.coerce.boolean().default(false),
 });
 

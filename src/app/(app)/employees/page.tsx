@@ -12,6 +12,7 @@ import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { FormDrawer } from "@/components/ui/FormDrawer";
 import { ImportPanel } from "@/components/excel/ImportPanel";
 import { EmployeeForm } from "./EmployeeForm";
+import { BulkConfigDrawer } from "./BulkConfigDrawer";
 import { PlusIcon, EditIcon, EmployeeOffIcon, EyeIcon } from "@/components/icons";
 import { EmployeeInput } from "@/lib/validation/employee";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
@@ -32,6 +33,7 @@ interface EmployeeRow {
     pfApplicable: boolean;
     esiApplicable: boolean;
     ptApplicable: boolean;
+    bonusApplicable: boolean;
     paidLeaveApplicable: boolean;
   } | null;
 }
@@ -47,6 +49,7 @@ export default function EmployeesPage() {
   const [deactivateTarget, setDeactivateTarget] = useState<EmployeeRow | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["employees", company.code, debouncedSearch, page],
@@ -121,6 +124,9 @@ export default function EmployeesPage() {
           templateUrl="/api/import/employees/template"
           onImported={refresh}
         />
+        <button className="btn-secondary" onClick={() => setBulkOpen(true)} disabled={employees.length === 0}>
+          <EditIcon /> Bulk Edits
+        </button>
         <button
           className="btn-primary"
           onClick={() => {
@@ -211,6 +217,15 @@ export default function EmployeesPage() {
             <Pagination page={page} pageSize={100} total={data?.total || 0} onPageChange={setPage} />
           </div>
         </div>
+      )}
+
+      {bulkOpen && (
+        <BulkConfigDrawer
+          employees={employees}
+          company={company.code}
+          onClose={() => setBulkOpen(false)}
+          onSaved={refresh}
+        />
       )}
 
       <FormDrawer
