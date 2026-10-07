@@ -166,13 +166,13 @@ function SalarySheetRow({
   }
 
   const mutExtras = useMutation({
-    mutationFn: (vals: { canteenCharges: number; otDays: number; otherAmount: number; bonus?: number }) =>
+    mutationFn: (vals: { canteenCharges: number; otDays: number; otherAmount: number }) =>
       post(`/api/payroll/records/${record.id}/extras`, vals),
     onMutate: async (vals) => {
       await queryClient.cancelQueries({ queryKey: recordsQueryKey });
       const prev = queryClient.getQueryData(recordsQueryKey);
       const otAmount = r0(vals.otDays * Number(record.dailyRate));
-      const bonus = vals.bonus !== undefined ? vals.bonus : Number(record.bonus);
+      const bonus = Number(record.bonus);
       const proratedOther = record.workingDays > 0
         ? r2((vals.otherAmount / record.workingDays) * record.payableDays)
         : vals.otherAmount;
@@ -180,7 +180,7 @@ function SalarySheetRow({
       const totalDeductions = r2(Number(record.pf) + Number(record.esi) + Number(record.pt) + Number(record.advance) + vals.canteenCharges);
       const netSalary = r0(totalEarnings - totalDeductions);
       const cheque = r2(Math.min(Math.max(Number(record.chequeAmount), 0), Math.max(netSalary, 0)));
-      patchRecord({ ...(vals.bonus !== undefined ? { bonus: String(bonus) } : {}), otDays: String(vals.otDays), otAmount: String(otAmount), otherAmount: String(vals.otherAmount), canteenCharges: String(vals.canteenCharges), totalEarnings: String(totalEarnings), totalDeductions: String(totalDeductions), netSalary: String(netSalary), cashAmount: String(r2(netSalary - cheque)), chequeAmount: String(cheque) });
+      patchRecord({ otDays: String(vals.otDays), otAmount: String(otAmount), otherAmount: String(vals.otherAmount), canteenCharges: String(vals.canteenCharges), totalEarnings: String(totalEarnings), totalDeductions: String(totalDeductions), netSalary: String(netSalary), cashAmount: String(r2(netSalary - cheque)), chequeAmount: String(cheque) });
       return { prev };
     },
     onSuccess: (data) => { setRowError(null); if (data.record) patchRecord(data.record); },
@@ -282,16 +282,11 @@ function SalarySheetRow({
       <td>
         <ReadCell value={formatCurrencyINR(record.salaryAfterAbsence)} />
       </td>
+      {/* Read-only: the bonus is awarded by rule, not typed. It is the rule's
+          amount when the month is on, the employee is entitled, and there was
+          no absence — otherwise zero. */}
       <td>
-        {bonusEnabled ? (
-          <EditableAmount
-            value={Number(record.bonus)}
-            disabled={disabled}
-            onCommit={(n) => mutExtras.mutate({ canteenCharges: Number(record.canteenCharges), otDays: Number(record.otDays), otherAmount: Number(record.otherAmount), bonus: n })}
-          />
-        ) : (
-          <ReadCell value={formatCurrencyINR(record.bonus)} />
-        )}
+        <ReadCell value={formatCurrencyINR(record.bonus)} emphasis={Number(record.bonus) > 0} />
       </td>
       <td>
         <EditableAmount

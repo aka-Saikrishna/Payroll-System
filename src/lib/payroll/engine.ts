@@ -108,10 +108,20 @@ export interface BonusRuleConfig {
 }
 
 /**
- * Full attendance means present for every working day in the month —
- * 31 out of 31, not merely "no absence recorded". Checking absences alone
- * would pay the bonus to an employee with no attendance uploaded at all
- * (0 present, 0 absent), which is the opposite of earning it.
+ * Full attendance means not a single absence in the month.
+ *
+ * Deliberately keyed on absences rather than `presentDays === workingDays`,
+ * because absence is what the factory actually records: attendance is entered
+ * as a count of absent days and presence is the remainder. Salary already
+ * works this way — zero absences earns the full month — so keying the bonus
+ * off presence instead would have the two disagree, and an employee paid in
+ * full for the month would be denied the bonus.
+ *
+ * `presentDays` is accepted for the full-month case but is not what decides
+ * it; see the paid-leave note below.
+ *
+ * A day forgiven by paid leave still counts as an absence here. Paid leave
+ * protects salary, not the bonus — being absent at all loses it.
  */
 export function computeBonusEligibility(
   workingDays: number,
@@ -119,7 +129,7 @@ export function computeBonusEligibility(
   actualAbsentDays: number
 ): boolean {
   if (workingDays <= 0) return false;
-  return actualAbsentDays === 0 && presentDays === workingDays;
+  return actualAbsentDays === 0;
 }
 
 /**

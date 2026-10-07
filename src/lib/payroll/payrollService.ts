@@ -2,7 +2,13 @@ import { prisma } from "@/lib/prisma";
 import { Prisma, PayrollStatus } from "@prisma/client";
 import { computeCalendarBreakdown } from "./period";
 import { resolveApplicableRule, resolveApplicablePtSlabs } from "./rules";
-import { calculateEmployeePayroll, computeOvertimeAmount, computeProratedOtherAmount, round0 } from "./engine";
+import {
+  calculateEmployeePayroll,
+  computeBonusEligibility,
+  computeOvertimeAmount,
+  computeProratedOtherAmount,
+  round0,
+} from "./engine";
 import { writeAuditLog } from "@/lib/audit";
 import { ApiError } from "@/lib/api-helpers";
 
@@ -344,13 +350,12 @@ export async function recalculateSingleEmployeePayroll(payrollPeriodId: string, 
  */
 export async function updatePayrollExtras(
   payrollRecordId: string,
-  extras: { canteenCharges: number; otDays: number; otherAmount: number; bonus?: number },
+  extras: { canteenCharges: number; otDays: number; otherAmount: number },
   userId: string | null
 ) {
   if (extras.canteenCharges < 0) throw new ApiError(400, "Canteen charges cannot be negative");
   if (extras.otDays < 0) throw new ApiError(400, "OT days cannot be negative");
   if (extras.otherAmount < 0) throw new ApiError(400, "Other amount cannot be negative");
-  if (extras.bonus !== undefined && extras.bonus < 0) throw new ApiError(400, "Bonus cannot be negative");
 
   const record = await prisma.payrollRecord.findUnique({
     where: { id: payrollRecordId },
@@ -365,7 +370,8 @@ export async function updatePayrollExtras(
   const workingDays = record.workingDays;
   const payableDays = record.payableDays;
   const otherAmount = computeProratedOtherAmount(extras.otherAmount, workingDays, payableDays);
-  const bonus = extras.bonus !== undefined ? round2(extras.bonus) : toNum(record.bonus);
+  // Bonus is rule-awarded, never edited here — carry the stored value through.
+  const bonus = toNum(record.bonus);
   const totalEarnings = round0(toNum(record.salaryAfterAbsence) + bonus + otAmount + otherAmount);
   const totalDeductions = round2(
     toNum(record.esi) + toNum(record.pf) + toNum(record.pt) + toNum(record.advance) + extras.canteenCharges
@@ -379,7 +385,6 @@ export async function updatePayrollExtras(
       otDays: extras.otDays,
       otAmount,
       otherAmount: extras.otherAmount,
-      ...(extras.bonus !== undefined ? { bonus } : {}),
       canteenCharges: extras.canteenCharges,
       totalEarnings,
       totalDeductions,
@@ -473,7 +478,15 @@ export async function toggleBonusForPeriod(
   const updates: Prisma.PrismaPromise<unknown>[] = [];
   for (const record of records) {
     const applicable = record.employee.salaryConfig?.bonusApplicable ?? true;
-    const bonus = enabled && applicable && record.bonusEligible ? round2(bonusAmount) : 0;
+    // Recomputed rather than trusting record.bonusEligible, which was written
+    // at generation time and goes stale when attendance changes or the rule
+    // itself does.
+    const eligible = computeBonusEligibility(
+      record.workingDays,
+      record.presentDays,
+      record.actualAbsentDays
+    );
+    const bonus = enabled && applicable && eligible ? round2(bonusAmount) : 0;
     const rawOther = toNum(record.otherAmount);
     const proratedOther = computeProratedOtherAmount(rawOther, record.workingDays, record.payableDays);
     const totalEarnings = round0(
@@ -486,7 +499,7 @@ export async function toggleBonusForPeriod(
     updates.push(
       prisma.payrollRecord.update({
         where: { id: record.id },
-        data: { bonus, totalEarnings, netSalary, cashAmount, chequeAmount },
+        data: { bonus, bonusEligible: eligible, totalEarnings, netSalary, cashAmount, chequeAmount },
       })
     );
   }

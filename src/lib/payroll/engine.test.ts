@@ -101,14 +101,21 @@ describe("full attendance bonus eligibility", () => {
     expect(computeBonusEligibility(31, 30, 1)).toBe(false);
   });
 
-  // An employee with no attendance uploaded has 0 absences recorded, but has
-  // not shown up either — they must not collect a full attendance bonus.
-  it("no attendance recorded at all -> NOT eligible", () => {
-    expect(computeBonusEligibility(31, 0, 0)).toBe(false);
+  // Attendance is captured as a count of absent days, so "no absence" is how
+  // a complete month is expressed. Salary already pays such a month in full,
+  // and the bonus follows the same reading — otherwise an employee paid for
+  // the whole month would be denied the bonus for it.
+  it("no absence recorded -> eligible, even with no present days stored", () => {
+    expect(computeBonusEligibility(31, 0, 0)).toBe(true);
   });
 
-  it("partial attendance with no absence marked -> NOT eligible", () => {
-    expect(computeBonusEligibility(31, 28, 0)).toBe(false);
+  it("no absence recorded -> eligible regardless of the present-day count", () => {
+    expect(computeBonusEligibility(31, 28, 0)).toBe(true);
+  });
+
+  // The flip side, and the one that matters: any absence loses it.
+  it("a single absence loses the bonus", () => {
+    expect(computeBonusEligibility(31, 30, 1)).toBe(false);
   });
 
   it("zero working days -> NOT eligible", () => {
