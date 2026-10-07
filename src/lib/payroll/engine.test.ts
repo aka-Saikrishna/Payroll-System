@@ -101,16 +101,12 @@ describe("full attendance bonus eligibility", () => {
     expect(computeBonusEligibility(31, 30, 1)).toBe(false);
   });
 
-  // Attendance is captured as a count of absent days, so "no absence" is how
-  // a complete month is expressed. Salary already pays such a month in full,
-  // and the bonus follows the same reading — otherwise an employee paid for
-  // the whole month would be denied the bonus for it.
-  it("no absence recorded -> eligible, even with no present days stored", () => {
-    expect(computeBonusEligibility(31, 0, 0)).toBe(true);
+  it("does not qualify when there are no recorded present days", () => {
+    expect(computeBonusEligibility(31, 0, 0)).toBe(false);
   });
 
-  it("no absence recorded -> eligible regardless of the present-day count", () => {
-    expect(computeBonusEligibility(31, 28, 0)).toBe(true);
+  it("does not qualify when present days are fewer than working days", () => {
+    expect(computeBonusEligibility(31, 28, 0)).toBe(false);
   });
 
   // The flip side, and the one that matters: any absence loses it.
@@ -126,18 +122,12 @@ describe("full attendance bonus eligibility", () => {
     expect(computeBonusEligibility(30, 30, 0)).toBe(true);
   });
 
-  // Eligibility reads actual presence, never the paid-leave-adjusted figure.
-  // This employee's payableDays is 30 of 30 because the single absence was
-  // forgiven, yet they were only present 29 days, so no bonus. Testing it
-  // explicitly because payableDays is the obvious wrong thing to reach for.
-  it("absence forgiven by paid leave still loses the bonus", () => {
+  // Paid leave protects salary but does not count as a present day or qualify
+  // for the bonus.
+  it("paid leave used disqualifies the bonus", () => {
     const workingDays = 30;
-    const presentDays = 29;
-    const actualAbsentDays = 1;
-    const payableDays = 30; // what the paid leave produced
-    expect(computeBonusEligibility(workingDays, presentDays, actualAbsentDays)).toBe(false);
-    // Guard against anyone "fixing" this by passing payableDays instead.
-    expect(computeBonusEligibility(workingDays, payableDays, actualAbsentDays)).toBe(false);
+    expect(computeBonusEligibility(workingDays, 29, 1, 1)).toBe(false);
+    expect(computeBonusEligibility(workingDays, 30, 0, 1)).toBe(false);
   });
 
   // The month is the switch: callers pass null when the monthly toggle is off.

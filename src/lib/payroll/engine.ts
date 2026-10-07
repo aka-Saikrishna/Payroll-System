@@ -96,10 +96,9 @@ export function computeSalaryAfterAbsence(
 // ------------------------------------------------------------------
 // Full attendance bonus
 //
-// IMPORTANT: using the monthly paid leave to avoid a salary deduction
-// does NOT make the employee eligible for the bonus. Eligibility
-// requires zero actual absences in the month (Working Days is the full
-// calendar month, so it is not used as the attendance target here).
+// IMPORTANT: paid leave protects salary, not the attendance bonus. Eligibility
+// requires the employee to be present on every working day, with no absences
+// and no paid leave used.
 // ------------------------------------------------------------------
 
 export interface BonusRuleConfig {
@@ -108,28 +107,17 @@ export interface BonusRuleConfig {
 }
 
 /**
- * Full attendance means not a single absence in the month.
- *
- * Deliberately keyed on absences rather than `presentDays === workingDays`,
- * because absence is what the factory actually records: attendance is entered
- * as a count of absent days and presence is the remainder. Salary already
- * works this way — zero absences earns the full month — so keying the bonus
- * off presence instead would have the two disagree, and an employee paid in
- * full for the month would be denied the bonus.
- *
- * `presentDays` is accepted for the full-month case but is not what decides
- * it; see the paid-leave note below.
- *
- * A day forgiven by paid leave still counts as an absence here. Paid leave
- * protects salary, not the bonus — being absent at all loses it.
+ * Full attendance means present on every working day. A paid-leave day is not
+ * a present day and must not qualify, even though it is forgiven for salary.
  */
 export function computeBonusEligibility(
   workingDays: number,
   presentDays: number,
-  actualAbsentDays: number
+  actualAbsentDays: number,
+  paidLeaveUsed = 0
 ): boolean {
   if (workingDays <= 0) return false;
-  return actualAbsentDays === 0;
+  return presentDays === workingDays && actualAbsentDays === 0 && paidLeaveUsed === 0;
 }
 
 /**
@@ -316,7 +304,8 @@ export function calculateEmployeePayroll(input: EmployeePayrollInput): EmployeeP
   const bonusEligible = computeBonusEligibility(
     input.workingDays,
     input.presentDays,
-    input.actualAbsentDays
+    input.actualAbsentDays,
+    paidLeaveUsed
   );
   const bonus = computeBonus(input.bonusRule, input.bonusApplicable, bonusEligible);
 

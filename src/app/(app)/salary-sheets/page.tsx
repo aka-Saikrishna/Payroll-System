@@ -691,8 +691,8 @@ export default function SalarySheetsPage() {
             </span>
           ) : (
             <span className="text-navy-400">
-              Bonus is active — employees present every working day receive{" "}
-              {bonusAmountLabel ?? "the bonus"}. Amount is editable per employee.
+              Bonus is active — eligible employees enabled in Employee Configuration receive{" "}
+              {bonusAmountLabel ?? "the configured amount"} when present every working day, with no absence or paid leave.
             </span>
           )}
         </div>

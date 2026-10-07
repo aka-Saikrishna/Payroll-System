@@ -484,7 +484,8 @@ export async function toggleBonusForPeriod(
     const eligible = computeBonusEligibility(
       record.workingDays,
       record.presentDays,
-      record.actualAbsentDays
+      record.actualAbsentDays,
+      record.paidLeaveUsed
     );
     const bonus = enabled && applicable && eligible ? round2(bonusAmount) : 0;
     const rawOther = toNum(record.otherAmount);
