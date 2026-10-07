@@ -20,13 +20,13 @@ export const COMPANIES: Record<string, CompanyInfo> = {
     code: "VPPL",
     name: "VEEJAY POLY PLAST LIMITED",
     prefix: "",
-    address: "SY NO 106/A, MADANAPURAM, KOTHUR MANDAL, MAHABOOBNAGAR DIST",
+    address: "KOTHUR, MAHABOOBNAGAR DIST",
   },
   VPFL: {
     code: "VPFL",
     name: "VEEJAY POLY FILMS LIMITED",
     prefix: "/vpfl",
-    address: "SY NO 42, KATTEDAN, RANGAREDDY DIST",
+    address: "KATTEDAN, HYDERABAD",
   },
 };
 

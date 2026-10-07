@@ -69,7 +69,6 @@ interface Group {
  */
 function buildGroups(rows: RegisterRow[]): Group[] {
   const any = (pick: (r: RegisterRow) => number) => rows.some((r) => pick(r) !== 0);
-  const hasBonus = any((r) => r.bonus);
   const hasOt = any((r) => r.otAmount);
   const hasOther = any((r) => r.otherAmount);
 
@@ -111,12 +110,13 @@ function buildGroups(rows: RegisterRow[]): Group[] {
       subs: [{ label: "Over-Time / Late Hours", width: 14, get: (r) => orBlank(r.otAmount) }],
     });
   }
-  if (hasBonus) {
-    groups.push({
-      label: "Attendance Bonus",
-      subs: [{ label: "Attendance Bonus", width: 13, get: (r) => orBlank(r.bonus) }],
-    });
-  }
+  // Always present, like PF/ESI/PT: the register should show the bonus line
+  // even in a month where nothing was paid, so a reader can see it was nil
+  // rather than wonder whether the column is missing.
+  groups.push({
+    label: "Attendance Bonus",
+    subs: [{ label: "Attendance Bonus", width: 13, get: (r) => orBlank(r.bonus) }],
+  });
   if (hasOther) {
     groups.push({
       label: "Other Amount",
