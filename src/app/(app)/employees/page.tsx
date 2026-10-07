@@ -122,6 +122,7 @@ export default function EmployeesPage() {
           previewUrl="/api/import/employees"
           confirmUrl="/api/import/employees"
           templateUrl="/api/import/employees/template"
+          company={company.code}
           onImported={refresh}
         />
         <button className="btn-secondary" onClick={() => setBulkOpen(true)} disabled={employees.length === 0}>
@@ -249,6 +250,7 @@ export default function EmployeesPage() {
                   pfApplicable: editing.salaryConfig?.pfApplicable ?? false,
                   esiApplicable: editing.salaryConfig?.esiApplicable ?? false,
                   ptApplicable: editing.salaryConfig?.ptApplicable ?? true,
+                  bonusApplicable: editing.salaryConfig?.bonusApplicable ?? true,
                   paidLeaveApplicable: editing.salaryConfig?.paidLeaveApplicable ?? false,
                 }
               : undefined

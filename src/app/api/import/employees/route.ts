@@ -6,6 +6,8 @@ import { validateEmployeeRows, ValidatedEmployeeRow } from "@/lib/excel/importEm
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
 
+const companySchema = z.enum(["VPPL", "VPFL"]).default("VPPL");
+
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
@@ -21,17 +23,35 @@ export async function POST(request: NextRequest) {
       assertValidExcelFile(file.name, file.size);
       const buffer = Buffer.from(await file.arrayBuffer());
       const { rows } = await parseWorkbookFirstSheet(buffer);
+      const company = companySchema.parse(formData.get("company") || "VPPL");
 
-      const existing = await prisma.employee.findMany({ select: { employeeCode: true } });
-      const existingCodes = new Set(existing.map((e) => e.employeeCode));
+      const existingWithCompanies = await prisma.employee.findMany({ select: { employeeCode: true, company: true } });
+      const existingCodes = new Set(existingWithCompanies.map((e) => e.employeeCode));
+      const existingCompanyByCode = new Map(existingWithCompanies.map((e) => [e.employeeCode, e.company]));
 
-      const result = validateEmployeeRows(rows, existingCodes);
+      const result = validateEmployeeRows(rows, existingCodes, existingCompanyByCode, company);
       return NextResponse.json(result);
     }
 
-    const bodySchema = z.object({ rows: z.array(z.any()), fileName: z.string().optional() });
+    const bodySchema = z.object({
+      rows: z.array(z.any()),
+      fileName: z.string().optional(),
+      company: companySchema,
+    });
     const body = bodySchema.parse(await request.json());
     const rows = body.rows as ValidatedEmployeeRow[];
+
+    const existing = await prisma.employee.findMany({
+      where: { employeeCode: { in: rows.map((row) => row.employeeCode) } },
+      select: { employeeCode: true, company: true },
+    });
+    const crossCompanyCode = existing.find((employee) => employee.company !== body.company);
+    if (crossCompanyCode) {
+      return NextResponse.json(
+        { error: `Employee ID ${crossCompanyCode.employeeCode} belongs to ${crossCompanyCode.company}` },
+        { status: 409 }
+      );
+    }
 
     let newRecords = 0;
     let updatedRecords = 0;
@@ -41,6 +61,7 @@ export async function POST(request: NextRequest) {
         where: { employeeCode: row.employeeCode },
         create: {
           employeeCode: row.employeeCode,
+          company: body.company,
           name: row.name,
           mobile: row.mobile || null,
           email: row.email || null,

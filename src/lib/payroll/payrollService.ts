@@ -4,7 +4,6 @@ import { computeCalendarBreakdown } from "./period";
 import { resolveApplicableRule, resolveApplicablePtSlabs } from "./rules";
 import {
   calculateEmployeePayroll,
-  computeBonusEligibility,
   computeOvertimeAmount,
   computeProratedOtherAmount,
   round0,
@@ -449,7 +448,6 @@ export async function reopenPayrollPeriod(payrollPeriodId: string, userId: strin
 export async function toggleBonusForPeriod(
   payrollPeriodId: string,
   enabled: boolean,
-  company: string,
   userId: string | null
 ) {
   const period = await findPeriodOrThrow(payrollPeriodId);
@@ -457,55 +455,110 @@ export async function toggleBonusForPeriod(
     throw new ApiError(409, "Payroll period is finalized. Reopen it before changing bonus.");
   }
 
-  await prisma.payrollPeriod.update({ where: { id: payrollPeriodId }, data: { bonusEnabled: enabled } });
-
   const records = await prisma.payrollRecord.findMany({
-    where: { payrollPeriodId, employee: { company } },
+    // bonusEnabled belongs to the shared payroll period, not to a company.
+    // Keep every organization's records consistent with that one switch.
+    where: { payrollPeriodId, employee: { status: "ACTIVE" } },
     include: { employee: { include: { salaryConfig: true } } },
   });
 
-  if (records.length === 0) return { updated: 0 };
+  const monthStart = new Date(Date.UTC(period.year, period.month - 1, 1));
+  const monthEnd = new Date(Date.UTC(period.year, period.month, 0));
+  const [attendance, advances, ruleSet] = await Promise.all([
+    records.length
+      ? prisma.attendance.findMany({
+        where: {
+          employeeId: { in: records.map((record) => record.employeeId) },
+          attendanceDate: { gte: monthStart, lte: monthEnd },
+        },
+        select: { employeeId: true, status: true },
+      })
+      : Promise.resolve([]),
+    records.length
+      ? prisma.salaryAdvance.findMany({
+          where: {
+            employeeId: { in: records.map((record) => record.employeeId) },
+            OR: [
+              { payrollPeriodId },
+              { payrollPeriodId: null, advanceDate: { gte: monthStart, lte: monthEnd } },
+            ],
+          },
+          select: { employeeId: true, amount: true },
+        })
+      : Promise.resolve([]),
+    loadRuleSet(monthEnd),
+  ]);
+  const attendanceByEmployee = new Map<string, { present: number; absent: number }>();
+  for (const row of attendance) {
+    const counts = attendanceByEmployee.get(row.employeeId) ?? { present: 0, absent: 0 };
+    if (row.status === "PRESENT") counts.present++;
+    else if (row.status === "ABSENT") counts.absent++;
+    attendanceByEmployee.set(row.employeeId, counts);
+  }
 
-  let bonusAmount = 0;
-  if (enabled) {
-    const monthEnd = new Date(Date.UTC(period.year, period.month, 0));
-    const ruleSet = await loadRuleSet(monthEnd);
-    // Mirrors computeBonus: the monthly toggle is the switch, the rule only
-    // supplies the amount for the month it covers.
-    bonusAmount = ruleSet.bonusRule?.amount ?? 0;
+  const advanceByEmployee = new Map<string, number>();
+  for (const advance of advances) {
+    advanceByEmployee.set(
+      advance.employeeId,
+      (advanceByEmployee.get(advance.employeeId) ?? 0) + toNum(advance.amount)
+    );
   }
 
   const updates: Prisma.PrismaPromise<unknown>[] = [];
   for (const record of records) {
-    const applicable = record.employee.salaryConfig?.bonusApplicable ?? true;
-    // Recomputed rather than trusting record.bonusEligible, which was written
-    // at generation time and goes stale when attendance changes or the rule
-    // itself does.
-    const eligible = computeBonusEligibility(
-      record.workingDays,
-      record.presentDays,
-      record.actualAbsentDays,
-      record.paidLeaveUsed
-    );
-    const bonus = enabled && applicable && eligible ? round2(bonusAmount) : 0;
-    const rawOther = toNum(record.otherAmount);
-    const proratedOther = computeProratedOtherAmount(rawOther, record.workingDays, record.payableDays);
-    const totalEarnings = round0(
-      toNum(record.salaryAfterAbsence) + bonus + toNum(record.otAmount) + proratedOther
-    );
-    const totalDeductions = toNum(record.totalDeductions);
-    const netSalary = round0(totalEarnings - totalDeductions);
-    const { cashAmount, chequeAmount } = computePaymentSplit(netSalary, toNum(record.chequeAmount));
+    const salaryConfig = record.employee.salaryConfig;
+    if (!salaryConfig) continue;
+    const counts = attendanceByEmployee.get(record.employeeId) ?? { present: 0, absent: 0 };
+    // The toggle can follow an attendance import without leaving the record's
+    // displayed attendance and salary values out of sync with its bonus.
+    const result = calculateEmployeePayroll({
+      basicSalary: toNum(salaryConfig.basicSalary),
+      monthlySalary: toNum(salaryConfig.monthlySalary),
+      workingDays: period.workingDays,
+      presentDays: counts.present,
+      actualAbsentDays: counts.absent,
+      advanceAmount: advanceByEmployee.get(record.employeeId) ?? 0,
+      canteenCharges: toNum(record.canteenCharges),
+      otDays: toNum(record.otDays),
+      otherAmount: toNum(record.otherAmount),
+      paidLeaveApplicable: salaryConfig.paidLeaveApplicable,
+      pfApplicable: salaryConfig.pfApplicable,
+      esiApplicable: salaryConfig.esiApplicable,
+      ptApplicable: salaryConfig.ptApplicable,
+      bonusApplicable: salaryConfig.bonusApplicable,
+      bonusRule: enabled ? ruleSet.bonusRule : null,
+      pfRule: ruleSet.pfRule,
+      esiRule: ruleSet.esiRule,
+      ptSlabs: ruleSet.ptSlabs,
+    });
+    const { cashAmount, chequeAmount } = computePaymentSplit(result.netSalary, toNum(record.chequeAmount));
 
     updates.push(
       prisma.payrollRecord.update({
         where: { id: record.id },
-        data: { bonus, bonusEligible: eligible, totalEarnings, netSalary, cashAmount, chequeAmount },
+        data: {
+          ...result,
+          basicSalary: salaryConfig.basicSalary,
+          hra: salaryConfig.hra,
+          conveyance: salaryConfig.conveyance,
+          monthlySalary: salaryConfig.monthlySalary,
+          // The database keeps Other Salary as the raw monthly input; the
+          // engine's result carries its attendance-prorated paid amount.
+          otherAmount: record.otherAmount,
+          cashAmount,
+          chequeAmount,
+          appliedPfRateId: ruleSet.pfRule?.id ?? null,
+          appliedEsiRuleId: ruleSet.esiRule?.id ?? null,
+          appliedBonusRuleId: ruleSet.bonusRule?.id ?? null,
+        },
       })
     );
   }
 
-  await prisma.$transaction(updates);
+  await prisma.$transaction([
+    prisma.payrollPeriod.update({ where: { id: payrollPeriodId }, data: { bonusEnabled: enabled } }),
+    ...updates,
+  ]);
 
   writeAuditLog({
     userId,

@@ -23,7 +23,12 @@ function parseBoolean(v: string): boolean {
   return ["true", "yes", "1", "y"].includes(v.trim().toLowerCase());
 }
 
-export function validateEmployeeRows(rows: ParsedRow[], existingCodes: Set<string>) {
+export function validateEmployeeRows(
+  rows: ParsedRow[],
+  existingCodes: Set<string>,
+  existingCompanyByCode: Map<string, string> = new Map(),
+  company = "VPPL"
+) {
   const errors: { row: number; message: string }[] = [];
   const validRows: ValidatedEmployeeRow[] = [];
   const seenInFile = new Set<string>();
@@ -41,6 +46,11 @@ export function validateEmployeeRows(rows: ParsedRow[], existingCodes: Set<strin
 
     if (!employeeCode) {
       errors.push({ row: row.rowNumber, message: "Employee ID missing" });
+      continue;
+    }
+    const existingCompany = existingCompanyByCode.get(employeeCode);
+    if (existingCompany && existingCompany !== company) {
+      errors.push({ row: row.rowNumber, message: `Employee ID ${employeeCode} belongs to ${existingCompany}` });
       continue;
     }
     if (!name) {

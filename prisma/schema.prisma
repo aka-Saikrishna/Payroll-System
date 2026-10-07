@@ -136,7 +136,7 @@ model EmployeeSalaryConfig {
   ptApplicable   Boolean  @default(true)
   // Whether this employee is entitled to the Full Attendance Bonus at all.
   // Defaults on, so existing employees keep behaving as before: the bonus is
-  // still gated by the period's monthly toggle and the BonusRule itself.
+  // gated by the period's monthly toggle, attendance, and the rule's date range.
   bonusApplicable Boolean @default(true)
   // Whether this employee gets the 1-day-per-month absence forgiveness.
   // Off by default: the factory's register deducts for every absent day,

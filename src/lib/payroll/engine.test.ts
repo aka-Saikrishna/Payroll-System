@@ -122,6 +122,11 @@ describe("full attendance bonus eligibility", () => {
     expect(computeBonusEligibility(30, 30, 0)).toBe(true);
   });
 
+  it("requires all 30 displayed working days, not a reduced weekday/holiday count", () => {
+    expect(computeBonusEligibility(30, 30, 0)).toBe(true);
+    expect(computeBonusEligibility(30, 26, 0)).toBe(false);
+  });
+
   // Paid leave protects salary but does not count as a present day or qualify
   // for the bonus.
   it("paid leave used disqualifies the bonus", () => {
@@ -178,6 +183,58 @@ describe("full attendance bonus eligibility", () => {
     expect(r.bonusEligible).toBe(true); // attendance was perfect
     expect(r.bonus).toBe(0); // but the employee is not entitled
     expect(r.totalEarnings).toBe(20000);
+  });
+
+  it("awards the bonus only for full present-days attendance", () => {
+    const r = calculateEmployeePayroll({
+      basicSalary: 20000,
+      monthlySalary: 20000,
+      workingDays: 30,
+      presentDays: 30,
+      actualAbsentDays: 0,
+      advanceAmount: 0,
+      canteenCharges: 0,
+      otDays: 0,
+      otherAmount: 0,
+      paidLeaveApplicable: false,
+      pfApplicable: false,
+      esiApplicable: false,
+      ptApplicable: false,
+      bonusApplicable: true,
+      bonusRule: { enabled: true, amount: 200 },
+      pfRule: null,
+      esiRule: null,
+      ptSlabs: [],
+    });
+
+    expect(r.bonusEligible).toBe(true);
+    expect(r.bonus).toBe(200);
+  });
+
+  it("does not award the bonus when only weekly-workday attendance is complete", () => {
+    const r = calculateEmployeePayroll({
+      basicSalary: 20000,
+      monthlySalary: 20000,
+      workingDays: 30,
+      presentDays: 26,
+      actualAbsentDays: 0,
+      advanceAmount: 0,
+      canteenCharges: 0,
+      otDays: 0,
+      otherAmount: 0,
+      paidLeaveApplicable: false,
+      pfApplicable: false,
+      esiApplicable: false,
+      ptApplicable: false,
+      bonusApplicable: true,
+      bonusRule: { enabled: true, amount: 200 },
+      pfRule: null,
+      esiRule: null,
+      ptSlabs: [],
+    });
+
+    expect(r.bonusEligible).toBe(false);
+    expect(r.bonus).toBe(0);
   });
 });
 

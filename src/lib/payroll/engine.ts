@@ -107,8 +107,9 @@ export interface BonusRuleConfig {
 }
 
 /**
- * Full attendance means present on every working day. A paid-leave day is not
- * a present day and must not qualify, even though it is forgiven for salary.
+ * Full attendance means present on every working day in the payroll period.
+ * In this system, `workingDays` is the month's displayed day count (for
+ * example, 30 in a 30-day month), so attendance must meet that exact count.
  */
 export function computeBonusEligibility(
   workingDays: number,

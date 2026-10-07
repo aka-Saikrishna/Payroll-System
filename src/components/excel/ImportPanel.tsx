@@ -25,6 +25,7 @@ export function ImportPanel({
   confirmUrl,
   templateUrl,
   onImported,
+  company,
 }: {
   title: string;
   fileName: string;
@@ -32,6 +33,7 @@ export function ImportPanel({
   confirmUrl: string;
   templateUrl: string;
   onImported: () => void;
+  company?: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
@@ -56,6 +58,7 @@ export function ImportPanel({
     try {
       const formData = new FormData();
       formData.append("file", file);
+      if (company) formData.append("company", company);
       const res = await fetch(previewUrl, { method: "POST", body: formData });
       const data = await res.json();
       if (!res.ok) {
@@ -76,7 +79,7 @@ export function ImportPanel({
       const res = await fetch(confirmUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rows: preview.validRows, fileName }),
+        body: JSON.stringify({ rows: preview.validRows, fileName, ...(company ? { company } : {}) }),
       });
       const data = await res.json();
       if (!res.ok) {
