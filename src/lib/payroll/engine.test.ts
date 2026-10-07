@@ -115,6 +115,24 @@ describe("full attendance bonus eligibility", () => {
     expect(computeBonusEligibility(0, 0, 0)).toBe(false);
   });
 
+  it("present every day of a 30-day month -> eligible", () => {
+    expect(computeBonusEligibility(30, 30, 0)).toBe(true);
+  });
+
+  // Eligibility reads actual presence, never the paid-leave-adjusted figure.
+  // This employee's payableDays is 30 of 30 because the single absence was
+  // forgiven, yet they were only present 29 days, so no bonus. Testing it
+  // explicitly because payableDays is the obvious wrong thing to reach for.
+  it("absence forgiven by paid leave still loses the bonus", () => {
+    const workingDays = 30;
+    const presentDays = 29;
+    const actualAbsentDays = 1;
+    const payableDays = 30; // what the paid leave produced
+    expect(computeBonusEligibility(workingDays, presentDays, actualAbsentDays)).toBe(false);
+    // Guard against anyone "fixing" this by passing payableDays instead.
+    expect(computeBonusEligibility(workingDays, payableDays, actualAbsentDays)).toBe(false);
+  });
+
   it("computeBonus returns 0 when rule disabled", () => {
     expect(computeBonus({ enabled: false, amount: 200 }, true, true)).toBe(0);
   });
