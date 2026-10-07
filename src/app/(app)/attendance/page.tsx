@@ -19,6 +19,7 @@ interface AttendanceRow {
   workingDays: number;
   presentDays: number;
   actualAbsentDays: number;
+  recordedDays: number;
   paidLeave: number;
   paidLeaveUsed: number;
   deductibleAbsentDays: number;
@@ -82,7 +83,10 @@ function AttendanceRowItem({
       if (context?.prev) queryClient.setQueryData(queryKey, context.prev);
     },
     onSuccess: () => setError(null),
-    onSettled: () => queryClient.invalidateQueries({ queryKey }),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ["payroll-records"] });
+    },
   });
 
   function commit() {
@@ -92,7 +96,10 @@ function AttendanceRowItem({
       setValue(String(row.actualAbsentDays));
       return;
     }
-    if (n === row.actualAbsentDays) return;
+    // A default value of 0 does not prove a zero-absence month was recorded.
+    // Allow blur/save at 0 when attendance is still missing so the endpoint
+    // writes explicit PRESENT rows for every day of the month.
+    if (n === row.actualAbsentDays && row.recordedDays >= row.workingDays) return;
     setError(null);
     mutation.mutate(n);
   }
@@ -125,6 +132,7 @@ function AttendanceRowItem({
 }
 
 export default function AttendancePage() {
+  const queryClient = useQueryClient();
   const company = useCompany();
   const now = new Date();
   const defaultMonth = now.getDate() < 15
@@ -180,7 +188,7 @@ export default function AttendancePage() {
             previewUrl="/api/import/attendance"
             confirmUrl="/api/import/attendance"
             templateUrl="/api/import/attendance/template"
-            onImported={() => {}}
+            onImported={() => queryClient.invalidateQueries({ queryKey })}
           />
         </Toolbar>
       </div>
@@ -195,8 +203,8 @@ export default function AttendancePage() {
       ) : (
         <>
         <p className="shrink-0 text-xs text-navy-500">
-          Enter the number of Actual Absent Days for an employee — Present Days, Deductible Absent Days and Payable
-          Days are calculated automatically.
+          Enter Actual Absent Days — Present Days are calculated as Working Days minus Actual Absent Days. Entering 0
+          means full attendance for the month; paid leave does not count toward the attendance bonus.
         </p>
         <div className="card scroll-thick flex-1 min-h-0 overflow-auto">
           <table className="table-base table-sticky-head">

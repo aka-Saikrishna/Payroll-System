@@ -4,6 +4,7 @@ import { computeCalendarBreakdown } from "./period";
 import { resolveApplicableRule, resolveApplicablePtSlabs } from "./rules";
 import {
   calculateEmployeePayroll,
+  computePresentDaysFromAbsences,
   computeOvertimeAmount,
   computeProratedOtherAmount,
   round0,
@@ -83,9 +84,8 @@ async function computeAttendanceCounts(employeeId: string, monthStart: Date, mon
   const records = await prisma.attendance.findMany({
     where: { employeeId, attendanceDate: { gte: monthStart, lte: monthEnd } },
   });
-  const presentDays = records.filter((r) => r.status === "PRESENT").length;
   const actualAbsentDays = records.filter((r) => r.status === "ABSENT").length;
-  return { presentDays, actualAbsentDays };
+  return { actualAbsentDays };
 }
 
 async function computeAdvanceAmount(employeeId: string, payrollPeriodId: string, monthStart: Date, monthEnd: Date) {
@@ -130,12 +130,11 @@ export async function generatePayrollForPeriod(payrollPeriodId: string, userId: 
     }),
   ]);
 
-  const attendanceByEmployee = new Map<string, { present: number; absent: number }>();
+  const attendanceByEmployee = new Map<string, number>();
   for (const rec of allAttendance) {
-    const entry = attendanceByEmployee.get(rec.employeeId) ?? { present: 0, absent: 0 };
-    if (rec.status === "PRESENT") entry.present++;
-    else if (rec.status === "ABSENT") entry.absent++;
-    attendanceByEmployee.set(rec.employeeId, entry);
+    if (rec.status === "ABSENT") {
+      attendanceByEmployee.set(rec.employeeId, (attendanceByEmployee.get(rec.employeeId) ?? 0) + 1);
+    }
   }
 
   const advanceByEmployee = new Map<string, number>();
@@ -151,7 +150,7 @@ export async function generatePayrollForPeriod(payrollPeriodId: string, userId: 
   for (const employee of employees) {
     if (!employee.salaryConfig) continue;
 
-    const counts = attendanceByEmployee.get(employee.id) ?? { present: 0, absent: 0 };
+    const actualAbsentDays = attendanceByEmployee.get(employee.id) ?? 0;
     const advanceAmount = advanceByEmployee.get(employee.id) ?? 0;
     const existing = existingByEmployee.get(employee.id);
 
@@ -159,8 +158,8 @@ export async function generatePayrollForPeriod(payrollPeriodId: string, userId: 
       basicSalary: toNum(employee.salaryConfig.basicSalary),
       monthlySalary: toNum(employee.salaryConfig.monthlySalary),
       workingDays: period.workingDays,
-      presentDays: counts.present,
-      actualAbsentDays: counts.absent,
+      presentDays: computePresentDaysFromAbsences(period.workingDays, actualAbsentDays),
+      actualAbsentDays,
       advanceAmount,
       canteenCharges: existing ? toNum(existing.canteenCharges) : 0,
       otDays: existing ? toNum(existing.otDays) : 0,
@@ -262,7 +261,7 @@ export async function recalculateSingleEmployeePayroll(payrollPeriodId: string, 
   const monthStart = new Date(Date.UTC(period.year, period.month - 1, 1));
   const monthEnd = new Date(Date.UTC(period.year, period.month, 0));
 
-  const [ruleSet, { presentDays, actualAbsentDays }, advanceAmount, existing] = await Promise.all([
+  const [ruleSet, { actualAbsentDays }, advanceAmount, existing] = await Promise.all([
     loadRuleSet(monthEnd),
     computeAttendanceCounts(employeeId, monthStart, monthEnd),
     computeAdvanceAmount(employeeId, payrollPeriodId, monthStart, monthEnd),
@@ -276,7 +275,7 @@ export async function recalculateSingleEmployeePayroll(payrollPeriodId: string, 
     basicSalary: toNum(employee.salaryConfig.basicSalary),
     monthlySalary: toNum(employee.salaryConfig.monthlySalary),
     workingDays: period.workingDays,
-    presentDays,
+    presentDays: computePresentDaysFromAbsences(period.workingDays, actualAbsentDays),
     actualAbsentDays,
     advanceAmount,
     canteenCharges: existing ? toNum(existing.canteenCharges) : 0,
@@ -488,12 +487,11 @@ export async function toggleBonusForPeriod(
       : Promise.resolve([]),
     loadRuleSet(monthEnd),
   ]);
-  const attendanceByEmployee = new Map<string, { present: number; absent: number }>();
+  const attendanceByEmployee = new Map<string, number>();
   for (const row of attendance) {
-    const counts = attendanceByEmployee.get(row.employeeId) ?? { present: 0, absent: 0 };
-    if (row.status === "PRESENT") counts.present++;
-    else if (row.status === "ABSENT") counts.absent++;
-    attendanceByEmployee.set(row.employeeId, counts);
+    if (row.status === "ABSENT") {
+      attendanceByEmployee.set(row.employeeId, (attendanceByEmployee.get(row.employeeId) ?? 0) + 1);
+    }
   }
 
   const advanceByEmployee = new Map<string, number>();
@@ -508,15 +506,15 @@ export async function toggleBonusForPeriod(
   for (const record of records) {
     const salaryConfig = record.employee.salaryConfig;
     if (!salaryConfig) continue;
-    const counts = attendanceByEmployee.get(record.employeeId) ?? { present: 0, absent: 0 };
+    const actualAbsentDays = attendanceByEmployee.get(record.employeeId) ?? 0;
     // The toggle can follow an attendance import without leaving the record's
     // displayed attendance and salary values out of sync with its bonus.
     const result = calculateEmployeePayroll({
       basicSalary: toNum(salaryConfig.basicSalary),
       monthlySalary: toNum(salaryConfig.monthlySalary),
       workingDays: period.workingDays,
-      presentDays: counts.present,
-      actualAbsentDays: counts.absent,
+      presentDays: computePresentDaysFromAbsences(period.workingDays, actualAbsentDays),
+      actualAbsentDays,
       advanceAmount: advanceByEmployee.get(record.employeeId) ?? 0,
       canteenCharges: toNum(record.canteenCharges),
       otDays: toNum(record.otDays),

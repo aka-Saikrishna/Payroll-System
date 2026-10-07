@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   calculateEmployeePayroll,
   computeAttendanceDerivedFields,
+  computePresentDaysFromAbsences,
   computeBonus,
   computeBonusEligibility,
   computeDailyRate,
@@ -13,6 +14,20 @@ import {
   PayrollValidationError,
   round0,
 } from "./engine";
+
+describe("computePresentDaysFromAbsences", () => {
+  it("zero actual absences means present for every working day", () => {
+    expect(computePresentDaysFromAbsences(30, 0)).toBe(30);
+  });
+
+  it("subtracts actual absences from the monthly working-day count", () => {
+    expect(computePresentDaysFromAbsences(30, 1)).toBe(29);
+  });
+
+  it("rejects absent days greater than working days", () => {
+    expect(() => computePresentDaysFromAbsences(30, 31)).toThrow(PayrollValidationError);
+  });
+});
 
 describe("computeAttendanceDerivedFields — monthly paid leave rule", () => {
   it("0 absence: paid leave unused, nothing deductible", () => {

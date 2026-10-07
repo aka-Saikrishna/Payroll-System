@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole, handleApiError, ApiError } from "@/lib/api-helpers";
 import { writeAuditLog } from "@/lib/audit";
 import { z } from "zod";
+import { recalculateSingleEmployeePayroll } from "@/lib/payroll/payrollService";
 
 /**
  * The payroll-configuration flags that can be set across many employees at
@@ -59,6 +60,23 @@ export async function POST(request: NextRequest) {
       }),
     ]);
 
+    // Employee flags such as bonus applicability can be changed after payroll
+    // was generated. Recalculate affected rows in every open period so those
+    // saved choices immediately flow through to salary sheets for this company.
+    const affectedIds = owned.map((employee) => employee.id);
+    const openPayrollRecords = await prisma.payrollRecord.findMany({
+      where: {
+        employeeId: { in: affectedIds },
+        payrollPeriod: { is: { status: { not: "FINALIZED" } } },
+      },
+      select: { employeeId: true, payrollPeriodId: true },
+    });
+    await Promise.all(
+      openPayrollRecords.map((record) =>
+        recalculateSingleEmployeePayroll(record.payrollPeriodId, record.employeeId, session.sub)
+      )
+    );
+
     writeAuditLog({
       userId: session.sub,
       action: "EMPLOYEE_BULK_CONFIG_UPDATED",
@@ -67,7 +85,12 @@ export async function POST(request: NextRequest) {
       newValue: { field: body.field, company: body.company, enabled: on.count, disabled: off.count },
     });
 
-    return NextResponse.json({ field: body.field, enabled: on.count, disabled: off.count });
+    return NextResponse.json({
+      field: body.field,
+      enabled: on.count,
+      disabled: off.count,
+      payrollRecordsUpdated: openPayrollRecords.length,
+    });
   } catch (error) {
     return handleApiError(error);
   }

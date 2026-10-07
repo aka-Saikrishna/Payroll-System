@@ -61,6 +61,16 @@ export default function EmployeesPage() {
     },
   });
 
+  const { data: sessionData } = useQuery({
+    queryKey: ["current-user"],
+    queryFn: async () => {
+      const res = await fetch("/api/auth/me");
+      if (!res.ok) return { user: null };
+      return res.json();
+    },
+  });
+  const canManagePayroll = sessionData?.user?.role === "ADMIN" || sessionData?.user?.role === "PAYROLL_MANAGER";
+
   function refresh() {
     queryClient.invalidateQueries({ queryKey: ["employees"] });
   }
@@ -125,7 +135,12 @@ export default function EmployeesPage() {
           company={company.code}
           onImported={refresh}
         />
-        <button className="btn-secondary" onClick={() => setBulkOpen(true)} disabled={employees.length === 0}>
+        <button
+          className="btn-secondary"
+          onClick={() => setBulkOpen(true)}
+          disabled={employees.length === 0 || !canManagePayroll}
+          title={!canManagePayroll ? "Only Admin and Payroll Manager users can edit payroll configuration." : undefined}
+        >
           <EditIcon /> Bulk Edits
         </button>
         <button

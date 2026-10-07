@@ -52,6 +52,16 @@ export interface AttendanceDerivedResult {
   payableDays: number;
 }
 
+/** Attendance is entered as actual absent-day counts; presence is the remainder. */
+export function computePresentDaysFromAbsences(workingDays: number, actualAbsentDays: number): number {
+  if (workingDays < 0) throw new PayrollValidationError("Working days cannot be negative");
+  if (actualAbsentDays < 0) throw new PayrollValidationError("Actual absent days cannot be negative");
+  if (actualAbsentDays > workingDays) {
+    throw new PayrollValidationError("Actual absent days cannot exceed working days");
+  }
+  return workingDays - actualAbsentDays;
+}
+
 export function computeAttendanceDerivedFields(input: AttendanceDerivedInput): AttendanceDerivedResult {
   const { workingDays, presentDays, actualAbsentDays, paidLeaveApplicable } = input;
 

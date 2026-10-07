@@ -557,6 +557,9 @@ export default function SalarySheetsPage() {
 
   const records: PayrollRecordRow[] = recordsData?.records || [];
   const isFinalized = periodData?.status === "FINALIZED";
+  const attendanceNeedsRecalculationCount = records.filter(
+    (record) => Number(record.presentDays) + Number(record.actualAbsentDays) === 0
+  ).length;
 
   async function handleAttendanceImported() {
     setActionError(null);
@@ -727,6 +730,11 @@ export default function SalarySheetsPage() {
             <span className="text-navy-400">
               Bonus is active — employees enabled in Employee Configuration receive{" "}
               {bonusAmountLabel ?? "the configured amount"} only when present for all {periodData?.workingDays} working days, with no absence or paid leave.
+            </span>
+          )}
+          {bonusEnabled && bonusRuleActive && attendanceNeedsRecalculationCount > 0 && (
+            <span className="text-warning-700">
+              {attendanceNeedsRecalculationCount} payroll row(s) still have old 0/0 attendance totals. Generate Payroll to calculate present days from actual absences and refresh bonuses.
             </span>
           )}
         </div>
