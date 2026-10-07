@@ -133,8 +133,15 @@ describe("full attendance bonus eligibility", () => {
     expect(computeBonusEligibility(workingDays, payableDays, actualAbsentDays)).toBe(false);
   });
 
-  it("computeBonus returns 0 when rule disabled", () => {
-    expect(computeBonus({ enabled: false, amount: 200 }, true, true)).toBe(0);
+  // The month is the switch: callers pass null when the monthly toggle is off.
+  it("computeBonus returns 0 when no rule applies to the month", () => {
+    expect(computeBonus(null, true, true)).toBe(0);
+  });
+
+  // The rule's own enabled flag is no longer a gate — it was a second hidden
+  // switch that blocked payment while the month looked enabled.
+  it("computeBonus pays from a rule regardless of its enabled flag", () => {
+    expect(computeBonus({ enabled: false, amount: 200 }, true, true)).toBe(200);
   });
 
   it("computeBonus returns configured amount when eligible and enabled", () => {

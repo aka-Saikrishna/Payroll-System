@@ -536,7 +536,9 @@ export default function SalarySheetsPage() {
       asOf
     );
   })();
-  const bonusRuleActive = !!activeBonusRule?.enabled;
+  // The rule only has to exist and cover this month — its own enabled flag is
+  // no longer a gate, this checkbox is the switch.
+  const bonusRuleActive = !!activeBonusRule;
   const bonusAmountLabel = activeBonusRule ? formatCurrencyINR(Number(activeBonusRule.amount)) : null;
 
   async function handleBonusToggle(checked: boolean) {
@@ -687,13 +689,10 @@ export default function SalarySheetsPage() {
           {!bonusEnabled ? (
             <span className="text-navy-400">Bonus is off for this month. Check to enable.</span>
           ) : !bonusRuleActive ? (
-            // Ticked, but the rule is disabled or missing — nothing will pay out.
+            // Ticked, but no rule covers this month, so there is no amount.
             <span>
-              <strong>Nothing will be paid.</strong>{" "}
-              {activeBonusRule
-                ? "The Full Attendance Bonus rule is switched off in Settings → Bonus."
-                : "No Full Attendance Bonus rule applies to this month — add one in Settings → Bonus."}{" "}
-              Enable it there, then run Generate Payroll for this month.
+              <strong>Nothing will be paid.</strong> No Full Attendance Bonus rule covers this month — add one in
+              Settings → Bonus, then run Generate Payroll.
             </span>
           ) : (
             <span className="text-navy-400">

@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormDrawer } from "@/components/ui/FormDrawer";
-import { StatusBadge } from "@/components/ui/StatusBadge";
 import { PlusIcon, EditIcon } from "@/components/icons";
 import { formatDate, formatCurrencyINR } from "@/lib/date-utils";
 
@@ -101,7 +100,6 @@ export default function BonusSettingsPage() {
                 <th>Name</th>
                 <th>Amount</th>
                 <th>Effective From</th>
-                <th>Status</th>
                 <th className="text-right">Actions</th>
               </tr>
             </thead>
@@ -111,9 +109,6 @@ export default function BonusSettingsPage() {
                   <td className="font-medium text-navy-900">{r.name}</td>
                   <td>{formatCurrencyINR(r.amount)}</td>
                   <td>{formatDate(r.effectiveFrom)}</td>
-                  <td>
-                    <StatusBadge status={r.enabled ? "ACTIVE" : "INACTIVE"} />
-                  </td>
                   <td>
                     <div className="flex justify-end">
                       <button className="btn-ghost px-2 py-1" onClick={() => openEdit(r)}>
@@ -143,9 +138,14 @@ export default function BonusSettingsPage() {
             <label className="label">Effective From</label>
             <input type="date" className="input" value={form.effectiveFrom} onChange={(e) => setForm((f) => ({ ...f, effectiveFrom: e.target.value }))} required />
           </div>
-          <label className="flex items-center gap-2 text-sm text-navy-700">
-            <input type="checkbox" checked={form.enabled} onChange={(e) => setForm((f) => ({ ...f, enabled: e.target.checked }))} /> Enabled
-          </label>
+          {/* No Enabled switch here: the bonus is turned on per month from the
+              salary sheet. A second switch in Settings only ever silently
+              blocked a month that looked enabled. Use Effective From (and a
+              later rule) to stop an amount applying. */}
+          <p className="text-xs text-navy-500">
+            The bonus is switched on for a given month from the salary sheet. This rule supplies the amount that
+            applies from the date above.
+          </p>
           <div className="flex justify-end gap-2 pt-2 border-t border-navy-100">
             <button type="button" className="btn-secondary" onClick={() => setDrawerOpen(false)}>
               Cancel

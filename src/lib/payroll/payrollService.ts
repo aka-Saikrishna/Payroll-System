@@ -465,10 +465,9 @@ export async function toggleBonusForPeriod(
   if (enabled) {
     const monthEnd = new Date(Date.UTC(period.year, period.month, 0));
     const ruleSet = await loadRuleSet(monthEnd);
-    // Mirrors computeBonus: a rule that is switched off pays nothing, no
-    // matter what the monthly toggle says. Reading .amount alone would have
-    // paid out from a disabled rule.
-    bonusAmount = ruleSet.bonusRule?.enabled ? ruleSet.bonusRule.amount : 0;
+    // Mirrors computeBonus: the monthly toggle is the switch, the rule only
+    // supplies the amount for the month it covers.
+    bonusAmount = ruleSet.bonusRule?.amount ?? 0;
   }
 
   const updates: Prisma.PrismaPromise<unknown>[] = [];

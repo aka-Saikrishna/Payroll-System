@@ -123,16 +123,21 @@ export function computeBonusEligibility(
 }
 
 /**
- * `applicable` is the per-employee entitlement, matching how PF/ESI/PT are
- * gated. All three must hold for anything to pay: the employee is entitled,
- * a rule is in force, and attendance was complete.
+ * Unlike PF/ESI/PT, the bonus is switched on per month from the salary sheet,
+ * and the caller passes `bonusRule` as null when that month's toggle is off.
+ * The rule's own `enabled` flag is deliberately NOT consulted: it was a second
+ * hidden switch that silently blocked payment while the month looked enabled.
+ * The rule now supplies only the amount and its effective date range.
+ *
+ * So anything paying out requires: the month is on (rule passed in at all),
+ * the employee is entitled, and attendance was complete.
  */
 export function computeBonus(
   bonusRule: BonusRuleConfig | null,
   applicable: boolean,
   isEligible: boolean
 ): number {
-  if (!applicable || !bonusRule || !bonusRule.enabled || !isEligible) return 0;
+  if (!applicable || !bonusRule || !isEligible) return 0;
   return round2(bonusRule.amount);
 }
 
